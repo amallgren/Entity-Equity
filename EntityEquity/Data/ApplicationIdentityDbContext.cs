@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EntityEquity.Data
 {
-    public class ApplicationDbContext : IdentityDbContext
+    public class ApplicationIdentityDbContext : IdentityDbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        public ApplicationIdentityDbContext(DbContextOptions<ApplicationIdentityDbContext> options)
             : base(options)
         {
         }
