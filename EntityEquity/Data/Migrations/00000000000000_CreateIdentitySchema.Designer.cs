@@ -9,7 +9,7 @@ using System;
 
 namespace EntityEquity.Data.Migrations
 {
-    [DbContext(typeof(ApplicationIdentityDbContext))]
+    [DbContext(typeof(ApplicationDbContext))]
     [Migration("00000000000000_CreateIdentitySchema")]
     partial class CreateIdentitySchema
     {
