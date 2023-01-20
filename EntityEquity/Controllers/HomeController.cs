@@ -10,18 +10,21 @@ namespace EntityEquity.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly ApplicationDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context)
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IConfiguration configuration)
         {
             _logger = logger;
             _context = context;
+            _configuration = configuration;
         }
 
         public IActionResult Index()
         {
-            IndexModel model = new();
+            var baseAddress = _configuration["BaseAddress"];
             var userId = this.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            model.Fill(_context, userId);
+            IndexModel model = new(baseAddress, userId);
+            model.Fill(_context);
             return View(model);
         }
 

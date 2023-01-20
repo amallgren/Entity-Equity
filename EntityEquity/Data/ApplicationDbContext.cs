@@ -18,9 +18,11 @@ namespace EntityEquity.Data
     {
         public Property()
         {
-            this.Slug = "";
+            Name = "";
+            Slug = "";
         }
         public int PropertyId { get; set; }
+        public string Name { get; set; }
         public string Slug { get; set; }
     }
     public class PropertyManager

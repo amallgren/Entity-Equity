@@ -1,16 +1,28 @@
-﻿@{
+﻿@using EntityEquity.Components
+
+@{
     ViewData["Title"] = "Home Page";
 }
 @model IndexModel
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <p>Build properties, build equity, with Entity Equity.</p>
 </div>
 <div class="row">
     <div style="position: relative" class="col-md-6">
+        <button style="position: absolute; right: 0px; top: 0px;" type="button" data-bs-toggle="modal" data-bs-target="#addPropertyModal">Add Property</button>
+        <div id="propertyListContent">
         @if (Model.Properties?.Count == 0) 
         {
-            <span>No active properties.</span>
+            <div class="text-center">
+                <span>No active properties.</span>
+            </div>
         }
+        else
+        {
+            <component type="typeof(PropertiesListLarge)" render-mode="ServerPrerendered" param-Properties="@Model.Properties" />
+        }
+        </div>
     </div>
 </div>
+<component type="typeof(AddPropertyModal)" render-mode="ServerPrerendered" param-UserID="@Model.UserID" param-BaseAddress="@Model.BaseAddress" />

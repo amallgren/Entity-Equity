@@ -1,0 +1,68 @@
+﻿@using EntityEquity.Data
+@using EntityEquity.Models
+@inject HttpClient Http
+
+<EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
+    <DataAnnotationsValidator />
+    
+    <div class="modal fade" id="addPropertyModal" tabindex="-1" aria-labelledby="addPropertyModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addPropertyModalLabel">Add property</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+                <div class="row">
+                    <ValidationSummary />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Name</label>
+                    <input id="addPropertyName" class="col-md-8" type="text" @bind-value="model.Name" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Url Slug</label>
+                    <input id="addPropertySlug" class="col-md-8" type="text" @bind-value="model.Slug" />
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</EditForm>
+@code {
+    [Parameter]
+    public string? BaseAddress { get; set; }
+    [Parameter]
+    public string? UserID { get; set; }
+
+    private PropertyModel model = new();
+
+    private async void ValidSubmit()
+    {
+        try
+        {
+            model.PropertyManagers = new();
+            PropertyManager manager = new();
+            manager.UserId = UserID;
+            model.PropertyManagers.Add(manager);
+            if (BaseAddress is not null && Http.BaseAddress is null)
+            {
+                Http.BaseAddress = new Uri(BaseAddress);
+            }
+            await Http.PostAsJsonAsync<PropertyModel>("api/Property", model);
+        }
+        catch (Exception ex)
+        {
+            string error = ex.Message;
+        }
+    }
+
+    private void Invalid()
+    {
+        
+    }
+}

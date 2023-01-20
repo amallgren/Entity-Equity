@@ -6,15 +6,22 @@ namespace EntityEquity.Models
     public class IndexModel
     {
         private ApplicationDbContext? _context;
+        public string BaseAddress { get; set; }
         public List<Property>? Properties { get; set; }
         public List<EquityShare>? EquityShares { get; set; }
-        public void Fill(ApplicationDbContext context, string userId)
+        public string UserID { get; set; }
+        public IndexModel(string baseAddress, string userId)
+        {
+            BaseAddress = baseAddress;
+            UserID = userId;
+        }
+        public void Fill(ApplicationDbContext context)
         {
             _context = context;
-            FillProperties(userId);
-            FillEquityShares(userId);
+            FillProperties();
+            FillEquityShares();
         }
-        private void FillProperties(string userId)
+        private void FillProperties()
         {
             if (_context != null)
             {
@@ -22,11 +29,11 @@ namespace EntityEquity.Models
                              join pm in _context.PropertyManagers!
                                 on p.PropertyId equals pm.Property.PropertyId
                              where pm.Role == PropertyManagerRoles.Administrator
-                                && pm.UserId == userId
+                                && pm.UserId == UserID
                              select p).ToList();
             }
         }
-        private void FillEquityShares(string userId)
+        private void FillEquityShares()
         {
 
         }

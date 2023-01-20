@@ -1,0 +1,14 @@
+﻿@using EntityEquity.Data
+
+@foreach(Property property in Properties)
+{
+    <div>
+        <h2>@property.Name</h2>
+        <div>@property.Slug</div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<Property> Properties { get; set; }
+}
