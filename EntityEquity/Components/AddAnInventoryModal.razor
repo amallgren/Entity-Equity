@@ -5,11 +5,11 @@
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
     <DataAnnotationsValidator />
     
-    <div class="modal fade" id="addPropertyModal" tabindex="-1" aria-labelledby="addPropertyModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addAnInventoryModal" tabindex="-1" aria-labelledby="addAnInventoryModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="addPropertyModalLabel">Add property</h5>
+            <h5 class="modal-title" id="addAnInventoryModalLabel">Add an inventory</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -19,10 +19,6 @@
                 <div class="row">
                     <label class="col-md-4">Name</label>
                     <input id="addPropertyName" class="col-md-8" type="text" @bind-value="model.Name" />
-                </div>
-                <div class="row">
-                    <label class="col-md-4">Url Slug</label>
-                    <input id="addPropertySlug" class="col-md-8" type="text" @bind-value="model.Slug" />
                 </div>
           </div>
           <div class="modal-footer">
@@ -39,21 +35,21 @@
     [Parameter]
     public string? UserId { get; set; }
 
-    private PropertyModel model = new();
+    private InventoryModel model = new();
 
     private async void ValidSubmit()
     {
         try
         {
-            model.PropertyManagers = new();
-            PropertyManager manager = new();
-            manager.UserId = UserId;
-            model.PropertyManagers.Add(manager);
+            model.InventoryManagers = new();
+            InventoryManager manager = new();
+            manager.UserId = UserId ?? "";
+            model.InventoryManagers.Add(manager);
             if (BaseAddress is not null && Http.BaseAddress is null)
             {
                 Http.BaseAddress = new Uri(BaseAddress);
             }
-            await Http.PostAsJsonAsync<PropertyModel>("api/Property", model);
+            await Http.PostAsJsonAsync<InventoryModel>("api/Inventory", model);
         }
         catch (Exception ex)
         {

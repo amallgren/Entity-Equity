@@ -23,16 +23,12 @@ namespace EntityEquity.Controllers
         {
             using (var context = _contextFactory.CreateDbContext())
             { 
-                if (context.PropertyManagers!=null)
-                { 
-                    return (from p in context.Properties
-                            join pm in context.PropertyManagers
-                                on p.PropertyId equals pm.Property.PropertyId
-                            where pm.UserId == userId
-                            select p).ToList<Property>();
-                }
+                return (from p in context.Properties
+                        join pm in context.PropertyManagers!
+                            on p.PropertyId equals pm.Property.PropertyId
+                        where pm.UserId == userId
+                        select p).ToList<Property>();
             }
-            return new List<Property>();
         }
         [HttpPost]
         public async void Post(PropertyModel model)
