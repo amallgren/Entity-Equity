@@ -1,0 +1,74 @@
+﻿@using EntityEquity.Common
+@using EntityEquity.Components
+@using EntityEquity.Data
+@using EntityEquity.Models
+@using Microsoft.AspNetCore.SignalR.Client
+@inject CookieBridgeHubConnection CookieBridgeHubConnection
+
+<div>
+<label for="inventories">Inventory</label>
+<select id="inventories" onchange="OnChangeInventory">
+    @if (Inventories!=null)
+    {
+        foreach(var inventory in Inventories)
+        {
+            <option value="@inventory.InventoryId">@inventory.Name</option>
+        }
+    }
+    
+</select>
+<button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryModal">Add An Inventory</button>
+</div>
+@if (InventoryItems is not null)
+{
+    foreach(var inventoryItem in InventoryItems)
+    {
+        <div>
+            @inventoryItem.Name
+       </div>
+    }
+}
+<div>
+    <div>
+        <button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryItemModal">Add An Inventory Item</button>
+    </div>
+</div>
+
+<component type="typeof(AddAnInventoryItemModal)" render-mode="ServerPrerendered" param-InventoryId="@SelectedInventory" />
+<AddAnInventoryItemModal></AddAnInventoryItemModal>
+
+@code {
+    [Parameter]
+    public string? Cookie { get; set; }
+    private List<Inventory>? Inventories { get; set; }
+
+    private string? SelectedInventory { get; set; }
+    private List<InventoryItem>? InventoryItems { get; set; }
+
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+
+        hubConnection.On("UpdateInventories", async () =>
+        {
+            UpdateInventories();
+        });
+
+        await hubConnection.StartAsync();
+
+        UpdateInventories();
+    }
+
+    private async void OnChangeInventory()
+    {
+        
+    }
+
+    private async void UpdateInventories()
+    {
+        Inventories = await hubConnection.InvokeAsync<List<Inventory>>("GetInventories");
+        await InvokeAsync(StateHasChanged);
+    }
+}

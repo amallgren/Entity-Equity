@@ -1,6 +1,16 @@
-﻿@using EntityEquity.Data
+﻿@using EntityEquity.Common
+@using EntityEquity.Data
+@using EntityEquity.Hubs
 @using EntityEquity.Models
-@inject HttpClient Http
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Net
+@inject IJSRuntime JS
+@inject IHubContext<EntityHub> HubContext
+@inject NavigationManager Navigation
+@inject CookieBridge CookieBridge
+@inject CookieBridgeHubConnection CookieBridgeHubConnection
+@implements IAsyncDisposable
 
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
     <DataAnnotationsValidator />
@@ -35,34 +45,48 @@
 </EditForm>
 @code {
     [Parameter]
-    public string? BaseAddress { get; set; }
-    [Parameter]
     public string? UserId { get; set; }
+    [Parameter]
+    public string? Cookie { get; set; }
 
+    private HubConnection? hubConnection;
     private PropertyModel model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+
+        hubConnection.On("OnAddedProperty", async () =>
+        {
+            await HubContext.Clients.All.SendAsync("UpdateProperties");
+        });
+
+        await hubConnection.StartAsync();
+    }
 
     private async void ValidSubmit()
     {
-        try
+        model.PropertyManagers = new();
+        PropertyManager manager = new();
+        manager.UserId = UserId;
+        model.PropertyManagers.Add(manager);
+        if (hubConnection is not null)
         {
-            model.PropertyManagers = new();
-            PropertyManager manager = new();
-            manager.UserId = UserId;
-            model.PropertyManagers.Add(manager);
-            if (BaseAddress is not null && Http.BaseAddress is null)
-            {
-                Http.BaseAddress = new Uri(BaseAddress);
-            }
-            await Http.PostAsJsonAsync<PropertyModel>("api/Property", model);
+            await hubConnection.SendAsync("AddProperty", model);
         }
-        catch (Exception ex)
-        {
-            string error = ex.Message;
-        }
+        await JS.InvokeVoidAsync("HideModal", new object[1] { "#addPropertyModal" });
     }
 
     private void Invalid()
     {
         
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }

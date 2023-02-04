@@ -1,8 +1,13 @@
 using EntityEquity.Data;
+using EntityEquity.Hubs;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using EntityEquity.Common;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddRazorPages();
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -18,9 +23,20 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.Requ
 builder.Services.AddServerSideBlazor();
 builder.Services.AddControllersWithViews();
 
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "application/octet-stream" });
+});
+
 builder.Services.AddHttpClient();
 
+builder.Services.AddTransient<CookieBridge>();
+builder.Services.AddTransient<CookieBridgeHubConnection>();
+
 var app = builder.Build();
+
+app.UseResponseCompression();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -47,5 +63,5 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 app.MapBlazorHub();
-
+app.MapHub<EntityHub>("/entityhub");
 app.Run();

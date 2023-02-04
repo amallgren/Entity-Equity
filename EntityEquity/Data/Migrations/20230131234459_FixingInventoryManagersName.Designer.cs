@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EntityEquity.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20230123232237_FixingTypoInOfferingPriceColumnSpecification")]
-    partial class FixingTypoInOfferingPriceColumnSpecification
+    [Migration("20230131234459_FixingInventoryManagersName")]
+    partial class FixingInventoryManagersName
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -49,6 +49,9 @@ namespace EntityEquity.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InventoryItemId"), 1L, 1);
 
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("InventoryId")
                         .HasColumnType("int");
 
@@ -64,10 +67,10 @@ namespace EntityEquity.Data.Migrations
 
                     b.HasIndex("InventoryId");
 
-                    b.ToTable("InventoryItem");
+                    b.ToTable("InventoryItems");
                 });
 
-            modelBuilder.Entity("EntityEquity.Data.InventoryManagers", b =>
+            modelBuilder.Entity("EntityEquity.Data.InventoryManager", b =>
                 {
                     b.Property<int>("InventoryManagerId")
                         .ValueGeneratedOnAdd()
@@ -112,7 +115,7 @@ namespace EntityEquity.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
-                        .HasColumnType("decimal(15,2)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("OfferingId");
 
@@ -402,7 +405,7 @@ namespace EntityEquity.Data.Migrations
                     b.Navigation("Inventory");
                 });
 
-            modelBuilder.Entity("EntityEquity.Data.InventoryManagers", b =>
+            modelBuilder.Entity("EntityEquity.Data.InventoryManager", b =>
                 {
                     b.HasOne("EntityEquity.Data.Inventory", "Inventory")
                         .WithMany()

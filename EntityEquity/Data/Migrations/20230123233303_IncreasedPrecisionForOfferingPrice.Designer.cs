@@ -67,7 +67,7 @@ namespace EntityEquity.Data.Migrations
                     b.ToTable("InventoryItem");
                 });
 
-            modelBuilder.Entity("EntityEquity.Data.InventoryManager", b =>
+            modelBuilder.Entity("EntityEquity.Data.InventoryManagers", b =>
                 {
                     b.Property<int>("InventoryManagerId")
                         .ValueGeneratedOnAdd()
@@ -89,7 +89,7 @@ namespace EntityEquity.Data.Migrations
 
                     b.HasIndex("InventoryId");
 
-                    b.ToTable("InventoryManager");
+                    b.ToTable("InventoryManagers");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.Offering", b =>
@@ -402,7 +402,7 @@ namespace EntityEquity.Data.Migrations
                     b.Navigation("Inventory");
                 });
 
-            modelBuilder.Entity("EntityEquity.Data.InventoryManager", b =>
+            modelBuilder.Entity("EntityEquity.Data.InventoryManagers", b =>
                 {
                     b.HasOne("EntityEquity.Data.Inventory", "Inventory")
                         .WithMany()

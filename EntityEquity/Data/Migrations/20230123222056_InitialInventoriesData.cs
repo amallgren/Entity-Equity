@@ -57,7 +57,7 @@ namespace EntityEquity.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "InventoryManager",
+                name: "InventoryManagers",
                 columns: table => new
                 {
                     InventoryManagerId = table.Column<int>(type: "int", nullable: false)
@@ -89,7 +89,7 @@ namespace EntityEquity.Data.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_InventoryManager_InventoryId",
-                table: "InventoryManager",
+                table: "InventoryManagers",
                 column: "InventoryId");
 
             migrationBuilder.AddForeignKey(
@@ -111,7 +111,7 @@ namespace EntityEquity.Data.Migrations
                 name: "InventoryItem");
 
             migrationBuilder.DropTable(
-                name: "InventoryManager");
+                name: "InventoryManagers");
 
             migrationBuilder.DropTable(
                 name: "Inventories");

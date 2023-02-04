@@ -15,7 +15,8 @@ namespace EntityEquity.Data
         public DbSet<Offering>? Offerings { get; set; }
         public DbSet<PropertyOfferingMapping>? PropertyOfferingMappings { get; set; }
         public DbSet<Inventory>? Inventories { get; set; }
-        public DbSet<InventoryManager>? InventoryManager { get; set; }
+        public DbSet<InventoryManager>? InventoryManagers { get; set; }
+        public DbSet<InventoryItem>? InventoryItems { get; set; }
     }
     public class Property
     {
@@ -116,6 +117,8 @@ namespace EntityEquity.Data
         public Inventory Inventory { get; set; }
         public string Name { get; set; }
         public string SKU { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Cost { get; set; }
     }
     public class InventoryManager
     {

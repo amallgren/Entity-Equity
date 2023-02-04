@@ -1,5 +1,6 @@
 ﻿using EntityEquity.Data;
 using EntityEquity.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
@@ -18,28 +19,12 @@ namespace EntityEquity.Controllers
             _logger = logger;
             _contextFactory = contextFactory;
             _configuration = configuration;
+            
         }
 
         public IActionResult Index()
         {
-            var baseAddress = _configuration["BaseAddress"];
-            var userId = this.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            IndexModel model = new(baseAddress, userId);
-            using (var context = _contextFactory.CreateDbContext())
-            {
-                model.Properties = GetProperties(context, userId);
-            }
-            return View(model);
-        }
-
-        private List<Property>? GetProperties(ApplicationDbContext context, string UserId)
-        {
-            return (from p in context.Properties
-             join pm in context.PropertyManagers!
-                on p.PropertyId equals pm.Property.PropertyId
-             where pm.Role == PropertyManagerRoles.Administrator
-                && pm.UserId == UserId
-             select p).ToList();
+            return View();
         }
 
         public IActionResult Privacy()

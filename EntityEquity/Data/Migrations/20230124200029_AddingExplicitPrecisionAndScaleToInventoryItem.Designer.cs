@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EntityEquity.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20230123232237_FixingTypoInOfferingPriceColumnSpecification")]
-    partial class FixingTypoInOfferingPriceColumnSpecification
+    [Migration("20230124200029_AddingExplicitPrecisionAndScaleToInventoryItem")]
+    partial class AddingExplicitPrecisionAndScaleToInventoryItem
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -48,6 +48,9 @@ namespace EntityEquity.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InventoryItemId"), 1L, 1);
+
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("InventoryId")
                         .HasColumnType("int");
@@ -112,7 +115,7 @@ namespace EntityEquity.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
-                        .HasColumnType("decimal(15,2)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("OfferingId");
 

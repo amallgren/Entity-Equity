@@ -47,6 +47,9 @@ namespace EntityEquity.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InventoryItemId"), 1L, 1);
 
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("InventoryId")
                         .HasColumnType("int");
 
@@ -62,7 +65,7 @@ namespace EntityEquity.Data.Migrations
 
                     b.HasIndex("InventoryId");
 
-                    b.ToTable("InventoryItem");
+                    b.ToTable("InventoryItems");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.InventoryManager", b =>
@@ -87,7 +90,7 @@ namespace EntityEquity.Data.Migrations
 
                     b.HasIndex("InventoryId");
 
-                    b.ToTable("InventoryManager");
+                    b.ToTable("InventoryManagers");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.Offering", b =>

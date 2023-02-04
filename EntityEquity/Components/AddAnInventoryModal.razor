@@ -1,6 +1,12 @@
-﻿@using EntityEquity.Data
+﻿@using EntityEquity.Common
+@using EntityEquity.Data
+@using EntityEquity.Hubs
 @using EntityEquity.Models
-@inject HttpClient Http
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IJSRuntime JS
+@inject IHubContext<EntityHub> HubContext
+@inject CookieBridgeHubConnection CookieBridgeHubConnection
 
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
     <DataAnnotationsValidator />
@@ -31,30 +37,38 @@
 </EditForm>
 @code {
     [Parameter]
-    public string? BaseAddress { get; set; }
+    public string? Cookie { get; set; }
     [Parameter]
     public string? UserId { get; set; }
 
+    private HubConnection? hubConnection;
+
     private InventoryModel model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+
+        hubConnection.On("OnAddedInventory", async () =>
+        {
+            await HubContext.Clients.All.SendAsync("UpdateInventories");
+        });
+
+        await hubConnection.StartAsync();
+    }
 
     private async void ValidSubmit()
     {
-        try
+        model.InventoryManagers = new();
+        InventoryManager manager = new();
+        manager.UserId = UserId!;
+        model.InventoryManagers.Add(manager);
+        if (hubConnection is not null)
         {
-            model.InventoryManagers = new();
-            InventoryManager manager = new();
-            manager.UserId = UserId ?? "";
-            model.InventoryManagers.Add(manager);
-            if (BaseAddress is not null && Http.BaseAddress is null)
-            {
-                Http.BaseAddress = new Uri(BaseAddress);
-            }
-            await Http.PostAsJsonAsync<InventoryModel>("api/Inventory", model);
+            await hubConnection.SendAsync("AddAnInventory", model);
+
         }
-        catch (Exception ex)
-        {
-            string error = ex.Message;
-        }
+        await JS.InvokeVoidAsync("HideModal", new object[1] { "#addAnInventoryModal" });
     }
 
     private void Invalid()

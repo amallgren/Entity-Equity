@@ -1,0 +1,56 @@
+﻿@using EntityEquity.Data
+@using EntityEquity.Models
+@inject HttpClient Http
+
+<EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
+    <DataAnnotationsValidator />
+    
+    <div class="modal fade" id="addAnInventoryItemModal" tabindex="-1" aria-labelledby="addAnInventoryItemModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addAnInventoryItemModalLabel">Add an inventory item</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+                <div class="row">
+                    <ValidationSummary />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Name</label>
+                    <input id="addAnInventoryItemName" class="col-md-8" type="text" @bind-value="model.Name" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">SKU</label>
+                    <input id="addAnInventoryItemSKU" class="col-md-8" type="text" @bind-value="model.SKU" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Cost</label>
+                    <input id="addAnInventoryItemCost" class="col-md-8" type="text" @bind-value="model.Cost" />
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</EditForm>
+@code {
+    [Parameter]
+    public string? InventoryId { get; set; }
+
+    private InventoryItemModel model = new();
+
+    private async void ValidSubmit()
+    {
+        model.Inventory = new();
+        model.Inventory.InventoryId = int.Parse(InventoryId); 
+    }
+
+    private void Invalid()
+    {
+        
+    }
+}

@@ -10,6 +10,7 @@ namespace EntityEquity.Models
             Name = "";
             InventoryManagers = new();
         }
+        public int InventoryId { get; set; }
         [Required]
         public string Name { get; set; }
         public List<InventoryManager> InventoryManagers { get; set; }

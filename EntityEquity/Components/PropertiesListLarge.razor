@@ -1,14 +1,45 @@
-﻿@using EntityEquity.Data
+﻿@using EntityEquity.Common
+@using EntityEquity.Data
+@using Microsoft.AspNetCore.SignalR.Client
+@inject CookieBridgeHubConnection CookieBridgeHubConnection
 
-@foreach(Property property in Properties)
-{
+<div style="display:flex">
+    @if (Properties is not null)
+    {
+        foreach(Property property in Properties)
+        {
+            <div>
+                <h2>@property.Name</h2>
+                <div>@property.Slug</div>
+            </div>
+        }
+    }
+
     <div>
-        <h2>@property.Name</h2>
-        <div>@property.Slug</div>
+        <div>
+            <button type="button" data-bs-toggle="modal" data-bs-target="#addPropertyModal">Add A Property</button>
+        </div>
     </div>
-}
+</div>
 
 @code {
+    private List<Property>? Properties { get; set; }
     [Parameter]
-    public List<Property> Properties { get; set; }
+    public string? Cookie { get; set; }
+
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+        hubConnection.On("UpdateProperties", async () =>
+        {
+            Properties = await hubConnection.InvokeAsync<List<Property>>("GetProperties");
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+        Properties = await hubConnection.InvokeAsync<List<Property>>("GetProperties");
+        await InvokeAsync(StateHasChanged);
+    }
 }
