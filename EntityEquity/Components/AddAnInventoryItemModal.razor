@@ -1,6 +1,12 @@
-﻿@using EntityEquity.Data
+﻿@using EntityEquity.Common
+@using EntityEquity.Data
+@using EntityEquity.Hubs
 @using EntityEquity.Models
-@inject HttpClient Http
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IJSRuntime JS
+@inject IHubContext<EntityHub> HubContext
+@inject CookieBridgeHubConnection CookieBridgeHubConnection
 
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
     <DataAnnotationsValidator />
@@ -40,13 +46,36 @@
 @code {
     [Parameter]
     public string? InventoryId { get; set; }
-
+    [Parameter]
+    public string? Cookie { get; set; }
+    private HubConnection? hubConnection;
     private InventoryItemModel model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+
+        hubConnection.On("OnAddedInventoryItem", async () =>
+        {
+            await HubContext.Clients.All.SendAsync("UpdateInventoryItems");
+        });
+
+        await hubConnection.StartAsync();
+    }
 
     private async void ValidSubmit()
     {
-        model.Inventory = new();
-        model.Inventory.InventoryId = int.Parse(InventoryId); 
+        if (int.Parse(InventoryId) > 0)
+        {
+            model.Inventory = new();
+            model.Inventory.InventoryId = int.Parse(InventoryId);
+            if (hubConnection is not null)
+            {
+                await hubConnection.SendAsync("AddInventoryItem", model);
+            }
+            await JS.InvokeVoidAsync("HideModal", new object[1] { "#addAnInventoryItemModal" });
+        }
+        
     }
 
     private void Invalid()

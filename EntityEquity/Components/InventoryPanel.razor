@@ -7,11 +7,15 @@
 
 <div>
 <label for="inventories">Inventory</label>
-<select id="inventories" onchange="OnChangeInventory">
+<select id="inventories" @onchange="OnChangeInventory" value="@SelectedInventory">
     @if (Inventories!=null)
     {
         foreach(var inventory in Inventories)
         {
+            if (SelectedInventory == 0)
+            {
+                SelectedInventory = @inventory.InventoryId;
+            }
             <option value="@inventory.InventoryId">@inventory.Name</option>
         }
     }
@@ -19,30 +23,32 @@
 </select>
 <button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryModal">Add An Inventory</button>
 </div>
-@if (InventoryItems is not null)
-{
-    foreach(var inventoryItem in InventoryItems)
+<div style="display:flex;">
+    @if (InventoryItems is not null)
     {
-        <div>
-            @inventoryItem.Name
-       </div>
+        foreach(var inventoryItem in InventoryItems)
+        {
+            <div>
+                @inventoryItem.Name
+           </div>
+        }
     }
-}
-<div>
     <div>
-        <button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryItemModal">Add An Inventory Item</button>
+        <div>
+            <button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryItemModal">Add An Inventory Item</button>
+        </div>
     </div>
 </div>
 
 <component type="typeof(AddAnInventoryItemModal)" render-mode="ServerPrerendered" param-InventoryId="@SelectedInventory" />
-<AddAnInventoryItemModal></AddAnInventoryItemModal>
+<AddAnInventoryItemModal InventoryId="@SelectedInventory.ToString()" Cookie="@Cookie"></AddAnInventoryItemModal>
 
 @code {
     [Parameter]
     public string? Cookie { get; set; }
-    private List<Inventory>? Inventories { get; set; }
 
-    private string? SelectedInventory { get; set; }
+    private List<Inventory>? Inventories { get; set; }
+    private int SelectedInventory { get; set; }
     private List<InventoryItem>? InventoryItems { get; set; }
 
     private HubConnection? hubConnection;
@@ -53,22 +59,44 @@
 
         hubConnection.On("UpdateInventories", async () =>
         {
-            UpdateInventories();
+            await UpdateInventories();
+        });
+
+        hubConnection.On("UpdateInventoryItems", async () =>
+        {
+            UpdateInventoryItems(SelectedInventory);
         });
 
         await hubConnection.StartAsync();
 
-        UpdateInventories();
+        await UpdateInventories();
+
+        UpdateInventoryItems(SelectedInventory);
+    }
+    private void OnChangeInventory(ChangeEventArgs e)
+    {
+        if (e.Value is not null)
+        {
+            SelectedInventory = int.Parse((string)e.Value);
+            UpdateInventoryItems(SelectedInventory);
+        }
     }
 
-    private async void OnChangeInventory()
+    private async Task UpdateInventories()
     {
-        
+        if (hubConnection is not null)
+        {
+            Inventories = await hubConnection.InvokeAsync<List<Inventory>>("GetInventories");
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
-    private async void UpdateInventories()
+    private async void UpdateInventoryItems(int selectedInventory)
     {
-        Inventories = await hubConnection.InvokeAsync<List<Inventory>>("GetInventories");
-        await InvokeAsync(StateHasChanged);
+        if (hubConnection is not null)
+        {
+            InventoryItems = await hubConnection.InvokeAsync<List<InventoryItem>>("GetInventoryItems", selectedInventory);
+            await InvokeAsync(StateHasChanged);
+        }
     }
 }
