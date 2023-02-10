@@ -1,0 +1,147 @@
+﻿@using EntityEquity.Common
+@using EntityEquity.Data
+@using EntityEquity.Extensions
+@using EntityEquity.Hubs
+@using EntityEquity.Models
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Net
+@inject IJSRuntime JS
+@inject IHubContext<EntityHub> HubContext
+@inject NavigationManager Navigation
+@inject CookieBridge CookieBridge
+@inject CookieBridgeConnection CookieBridgeConnection
+@implements IAsyncDisposable
+
+<EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
+    <DataAnnotationsValidator />
+    
+    <div class="modal fade" id="addOfferingModal" tabindex="-1" aria-labelledby="addOfferingModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addOfferingModalLabel">Add offerings</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+                <div class="row">
+                    <ValidationSummary />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Url Slug</label>
+                    <input id="addOfferingSlug" class="col-md-8" type="text" @bind-value="model.Slug" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Name</label>
+                    <input id="addOfferingName" class="col-md-8" type="text" @bind-value="model.Name" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Description</label>
+                    <textarea id="addOfferingName" class="col-md-8" type="text" @bind="model.Description" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Properties</label>
+                    <select id="addOfferingProperties" class="col-md-8" multiple @bind="model.PropertyIdsStrings">
+                        @foreach (var property in Properties)
+                        {
+                            <option value="@property.PropertyId">@property.Name</option> 
+                        }
+                        </select>
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Inventories</label>
+                    <select id="addOfferingInventories" class="col-md-8" multiple @onchange="OnChangeInventory">
+                        @foreach (var inventory in Inventories)
+                        {
+                            <option value="@inventory.InventoryId">@inventory.Name</option> 
+                        }
+                        </select>
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Inventory Item</label>
+                    <select id="addOfferingInventoryItem" class="col-md-8" multiple @bind="model.InventoryItemIdStrings">
+                        @foreach (var inventoryItem in InventoryItems)
+                        {
+                            <option value="@inventoryItem.InventoryItemId">@inventoryItem.Name</option>
+                        }
+                    </select>
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</EditForm>
+@code {
+    [Parameter]
+    public string? UserId { get; set; }
+    [Parameter]
+    public string? Cookie { get; set; }
+
+    private HubConnection? hubConnection;
+    private List<Property> Properties = new();
+    private List<Inventory> Inventories = new();
+    private List<InventoryItem> InventoryItems = new();
+    private OfferingModel model = new();
+    private int[] SelectedInventory = new int[0];
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
+
+        hubConnection.On("OnAddedOffering", async () =>
+        {
+            await HubContext.Clients.All.SendAsync("UpdateOfferings", model);
+        });
+
+        await hubConnection.StartAsync();
+
+        await PopulateData();
+    }
+
+    private async Task PopulateData()
+    {
+        if (hubConnection is not null)
+        {
+            Properties = await hubConnection.InvokeAsync<List<Property>>("GetProperties");
+            Inventories = await hubConnection.InvokeAsync<List<Inventory>>("GetInventories");
+            InventoryItems = await hubConnection.InvokeAsync<List<InventoryItem>>("GetInventoryItems", SelectedInventory);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async void ValidSubmit()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("AddOfferings", model);
+        }
+        await JS.InvokeVoidAsync("HideModal", new object[1] { "#addOfferingModal" });
+    }
+
+    private void Invalid()
+    {
+        
+    }
+
+    private async void OnChangeInventory(ChangeEventArgs e)
+    {
+        if (e.Value is not null)
+        {
+            SelectedInventory = ((string[])e.Value).ToIntArray();
+            InventoryItems = await hubConnection.InvokeAsync<List<InventoryItem>>("GetInventoryItems", SelectedInventory);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

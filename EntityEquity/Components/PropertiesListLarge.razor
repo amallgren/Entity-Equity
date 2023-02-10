@@ -1,7 +1,7 @@
 ﻿@using EntityEquity.Common
 @using EntityEquity.Data
 @using Microsoft.AspNetCore.SignalR.Client
-@inject CookieBridgeHubConnection CookieBridgeHubConnection
+@inject CookieBridgeConnection CookieBridgeConnection
 
 <div style="display:flex">
     @if (Properties is not null)
@@ -31,7 +31,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
         hubConnection.On("UpdateProperties", async () =>
         {
             Properties = await hubConnection.InvokeAsync<List<Property>>("GetProperties");

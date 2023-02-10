@@ -5,7 +5,7 @@ namespace EntityEquity.Common
     public class CookieBridge
     {
         private IConfiguration _configuration;
-        private string Name { 
+        public string Name { 
             get
             {
                 return _configuration["CookieBridge:CookieName"];

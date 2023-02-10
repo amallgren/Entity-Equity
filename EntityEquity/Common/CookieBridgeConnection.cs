@@ -4,14 +4,16 @@ using System.Net;
 
 namespace EntityEquity.Common
 {
-    public class CookieBridgeHubConnection
+    public class CookieBridgeConnection
     {
+        private IHttpClientFactory _httpClientFactory;
         private NavigationManager _navigationManager { get; set; }
         private CookieBridge _cookieBridge { get; set; }
-        public CookieBridgeHubConnection(NavigationManager navigationManager, CookieBridge cookieBridge)
+        public CookieBridgeConnection(NavigationManager navigationManager, CookieBridge cookieBridge, IHttpClientFactory httpClientFactory)
         {
             _navigationManager = navigationManager;
             _cookieBridge = cookieBridge;
+            _httpClientFactory = httpClientFactory;
         }
         public HubConnection GetHubConnection(string hubUrl, string cookie)
         {
@@ -22,6 +24,13 @@ namespace EntityEquity.Common
                 options.Cookies = _cookieBridge.CookieContainer;
             })
             .Build();
+        }
+        public HttpClient GetHttpClient(string cookie)
+        {
+            _cookieBridge.Value = cookie;
+            var httpClient = _httpClientFactory.CreateClient("DefaultHttpClient");
+            httpClient.DefaultRequestHeaders.Add("Cookie", $"{_cookieBridge.Name}={_cookieBridge.Value}");
+            return httpClient;
         }
     }
 }

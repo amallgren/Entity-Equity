@@ -29,10 +29,10 @@ builder.Services.AddResponseCompression(opts =>
         new[] { "application/octet-stream" });
 });
 
-builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("DefaultHttpClient", client => client.BaseAddress = new Uri("https://localhost:7055/"));
 
 builder.Services.AddTransient<CookieBridge>();
-builder.Services.AddTransient<CookieBridgeHubConnection>();
+builder.Services.AddTransient<CookieBridgeConnection>();
 
 var app = builder.Build();
 
@@ -63,5 +63,6 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 app.MapBlazorHub();
+app.MapControllers();
 app.MapHub<EntityHub>("/entityhub");
 app.Run();

@@ -1,12 +1,13 @@
 ﻿@using EntityEquity.Common
 @using EntityEquity.Data
+@using EntityEquity.Extensions
 @using EntityEquity.Hubs
 @using EntityEquity.Models
 @using Microsoft.AspNetCore.SignalR
 @using Microsoft.AspNetCore.SignalR.Client
 @inject IJSRuntime JS
 @inject IHubContext<EntityHub> HubContext
-@inject CookieBridgeHubConnection CookieBridgeHubConnection
+@inject CookieBridgeConnection CookieBridgeConnection
 
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
     <DataAnnotationsValidator />
@@ -21,6 +22,18 @@
           <div class="modal-body">
                 <div class="row">
                     <ValidationSummary />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Inventories</label>
+                    <select id="addAnInventoryItemInventorySelect" multiple @onchange="OnChangeInventory">
+                        @if (Inventories != null)
+                        {
+                            foreach (Inventory inventory in Inventories)
+                            {
+                                    <option value="@inventory.InventoryId">@inventory.Name</option>
+                            }
+                        }
+                    </select>
                 </div>
                 <div class="row">
                     <label class="col-md-4">Name</label>
@@ -45,37 +58,60 @@
 </EditForm>
 @code {
     [Parameter]
-    public string? InventoryId { get; set; }
+    public int[] InventoryIds { get; set; } = new int[0];
     [Parameter]
     public string? Cookie { get; set; }
     private HubConnection? hubConnection;
     private InventoryItemModel model = new();
+    private List<Inventory>? Inventories = new();
+    private int[] SelectedInventory = new int[0];
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
 
         hubConnection.On("OnAddedInventoryItem", async () =>
         {
             await HubContext.Clients.All.SendAsync("UpdateInventoryItems");
         });
 
-        await hubConnection.StartAsync();
-    }
+        hubConnection.On("UpdateInventories", async () =>
+        {
+            await UpdateInventories();
+        });
 
+        await hubConnection.StartAsync();
+
+        await UpdateInventories();
+    }
+    private async Task UpdateInventories()
+    {
+        if (hubConnection is not null)
+        {
+            Inventories = await hubConnection.InvokeAsync<List<Inventory>>("GetInventories");
+            await InvokeAsync(StateHasChanged);
+        }
+    }
     private async void ValidSubmit()
     {
-        if (int.Parse(InventoryId) > 0)
+        foreach (int inventoryId in SelectedInventory)
         {
             model.Inventory = new();
-            model.Inventory.InventoryId = int.Parse(InventoryId);
+            model.Inventory.InventoryId = inventoryId;
             if (hubConnection is not null)
             {
                 await hubConnection.SendAsync("AddInventoryItem", model);
             }
-            await JS.InvokeVoidAsync("HideModal", new object[1] { "#addAnInventoryItemModal" });
         }
-        
+        await JS.InvokeVoidAsync("HideModal", new object[1] { "#addAnInventoryItemModal" });
+    }
+
+    private void OnChangeInventory(ChangeEventArgs e)
+    {
+        if (e.Value is not null)
+        {
+            SelectedInventory = ((string[])e.Value).ToIntArray();
+        }
     }
 
     private void Invalid()

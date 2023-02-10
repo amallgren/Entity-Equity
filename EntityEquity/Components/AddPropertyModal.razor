@@ -9,7 +9,7 @@
 @inject IHubContext<EntityHub> HubContext
 @inject NavigationManager Navigation
 @inject CookieBridge CookieBridge
-@inject CookieBridgeHubConnection CookieBridgeHubConnection
+@inject CookieBridgeConnection CookieBridgeConnection
 @implements IAsyncDisposable
 
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
@@ -27,12 +27,12 @@
                     <ValidationSummary />
                 </div>
                 <div class="row">
-                    <label class="col-md-4">Name</label>
-                    <input id="addPropertyName" class="col-md-8" type="text" @bind-value="model.Name" />
-                </div>
-                <div class="row">
                     <label class="col-md-4">Url Slug</label>
                     <input id="addPropertySlug" class="col-md-8" type="text" @bind-value="model.Slug" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Name</label>
+                    <input id="addPropertyName" class="col-md-8" type="text" @bind-value="model.Name" />
                 </div>
           </div>
           <div class="modal-footer">
@@ -45,8 +45,6 @@
 </EditForm>
 @code {
     [Parameter]
-    public string? UserId { get; set; }
-    [Parameter]
     public string? Cookie { get; set; }
 
     private HubConnection? hubConnection;
@@ -54,7 +52,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
 
         hubConnection.On("OnAddedProperty", async () =>
         {
@@ -66,10 +64,6 @@
 
     private async void ValidSubmit()
     {
-        model.PropertyManagers = new();
-        PropertyManager manager = new();
-        manager.UserId = UserId;
-        model.PropertyManagers.Add(manager);
         if (hubConnection is not null)
         {
             await hubConnection.SendAsync("AddProperty", model);

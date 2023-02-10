@@ -16,4 +16,4 @@
     </div>
 </div>
 
-@(await Html.RenderComponentAsync(typeof(AddPropertyModal), RenderMode.ServerPrerendered, new { UserId = Model.UserId, Cookie = cookie }))
+@(await Html.RenderComponentAsync(typeof(AddPropertyModal), RenderMode.ServerPrerendered, new { Cookie = cookie }))

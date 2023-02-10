@@ -1,25 +1,21 @@
 ﻿@using EntityEquity.Common
 @using EntityEquity.Components
 @using EntityEquity.Data
+@using EntityEquity.Extensions
 @using EntityEquity.Models
 @using Microsoft.AspNetCore.SignalR.Client
-@inject CookieBridgeHubConnection CookieBridgeHubConnection
+@inject CookieBridgeConnection CookieBridgeConnection
 
 <div>
 <label for="inventories">Inventory</label>
-<select id="inventories" @onchange="OnChangeInventory" value="@SelectedInventory">
+<select id="inventories" multiple @onchange="OnChangeInventory">
     @if (Inventories!=null)
     {
         foreach(var inventory in Inventories)
         {
-            if (SelectedInventory == 0)
-            {
-                SelectedInventory = @inventory.InventoryId;
-            }
             <option value="@inventory.InventoryId">@inventory.Name</option>
         }
     }
-    
 </select>
 <button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryModal">Add An Inventory</button>
 </div>
@@ -39,23 +35,21 @@
         </div>
     </div>
 </div>
-
-<component type="typeof(AddAnInventoryItemModal)" render-mode="ServerPrerendered" param-InventoryId="@SelectedInventory" />
-<AddAnInventoryItemModal InventoryId="@SelectedInventory.ToString()" Cookie="@Cookie"></AddAnInventoryItemModal>
+<AddAnInventoryItemModal InventoryIds=@SelectedInventory Cookie="@Cookie"></AddAnInventoryItemModal>
 
 @code {
     [Parameter]
     public string? Cookie { get; set; }
 
     private List<Inventory>? Inventories { get; set; }
-    private int SelectedInventory { get; set; }
+    private int[] SelectedInventory = new int[0];
     private List<InventoryItem>? InventoryItems { get; set; }
 
     private HubConnection? hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
 
         hubConnection.On("UpdateInventories", async () =>
         {
@@ -64,21 +58,21 @@
 
         hubConnection.On("UpdateInventoryItems", async () =>
         {
-            UpdateInventoryItems(SelectedInventory);
+            await UpdateInventoryItems();
         });
 
         await hubConnection.StartAsync();
 
         await UpdateInventories();
 
-        UpdateInventoryItems(SelectedInventory);
+        await UpdateInventoryItems();
     }
-    private void OnChangeInventory(ChangeEventArgs e)
+    private async void OnChangeInventory(ChangeEventArgs e)
     {
         if (e.Value is not null)
         {
-            SelectedInventory = int.Parse((string)e.Value);
-            UpdateInventoryItems(SelectedInventory);
+            SelectedInventory = ((string[])e.Value).ToIntArray();
+            await UpdateInventoryItems();
         }
     }
 
@@ -91,11 +85,11 @@
         }
     }
 
-    private async void UpdateInventoryItems(int selectedInventory)
+    private async Task UpdateInventoryItems()
     {
         if (hubConnection is not null)
         {
-            InventoryItems = await hubConnection.InvokeAsync<List<InventoryItem>>("GetInventoryItems", selectedInventory);
+            InventoryItems = await hubConnection.InvokeAsync<List<InventoryItem>>("GetInventoryItems", SelectedInventory);
             await InvokeAsync(StateHasChanged);
         }
     }

@@ -6,7 +6,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @inject IJSRuntime JS
 @inject IHubContext<EntityHub> HubContext
-@inject CookieBridgeHubConnection CookieBridgeHubConnection
+@inject CookieBridgeConnection CookieBridgeConnection
 
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
     <DataAnnotationsValidator />
@@ -47,7 +47,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = CookieBridgeHubConnection.GetHubConnection("/entityhub", Cookie!);
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
 
         hubConnection.On("OnAddedInventory", async () =>
         {
@@ -59,10 +59,6 @@
 
     private async void ValidSubmit()
     {
-        model.InventoryManagers = new();
-        InventoryManager manager = new();
-        manager.UserId = UserId!;
-        model.InventoryManagers.Add(manager);
         if (hubConnection is not null)
         {
             await hubConnection.SendAsync("AddAnInventory", model);

@@ -25,12 +25,10 @@ namespace EntityEquity.Hubs
                 dbContext.Properties!.Add(property);
                 await dbContext.SaveChangesAsync();
 
-                foreach (var pm in model.PropertyManagers)
-                {
-                    PropertyManager manager = new() { Property = property, UserId = pm.UserId, Role = PropertyManagerRoles.Administrator };
-                    dbContext.Attach<Property>(manager.Property);
-                    dbContext.PropertyManagers!.Add(manager);
-                }
+                PropertyManager propertyManager = new() { Property = property, UserId = _userManager.GetUserId(Context.User), Role = PropertyManagerRoles.Administrator };
+                dbContext.Attach<Property>(propertyManager.Property);
+                dbContext.PropertyManagers!.Add(propertyManager);
+
                 await dbContext.SaveChangesAsync();
             }
             await Clients.Caller.SendAsync("OnAddedProperty");
@@ -59,12 +57,9 @@ namespace EntityEquity.Hubs
                     context.Inventories.Add(inventory);
                     await context.SaveChangesAsync();
 
-                    foreach (var im in model.InventoryManagers)
-                    {
-                        InventoryManager manager = new() { Inventory = inventory, UserId = im.UserId, Role = InventoryManagerRoles.Administrator };
-                        context.Attach<Inventory>(manager.Inventory);
-                        context.InventoryManagers.Add(manager);
-                    }
+                    InventoryManager inventoryManager = new() { Inventory = inventory, UserId = _userManager.GetUserId(Context.User), Role = InventoryManagerRoles.Administrator };
+                    context.Attach<Inventory>(inventoryManager.Inventory);
+                    context.InventoryManagers.Add(inventoryManager);
                     await context.SaveChangesAsync();
                 }
             }
@@ -79,6 +74,7 @@ namespace EntityEquity.Hubs
                         join im in context.InventoryManagers!
                             on i.InventoryId equals im.Inventory.InventoryId
                         where im.UserId == _userManager.GetUserId(Context.User)
+                            && im.Role == InventoryManagerRoles.Administrator
                         select i).ToList();
             }
         }
@@ -109,7 +105,7 @@ namespace EntityEquity.Hubs
             await Clients.Caller.SendAsync("OnAddedInventoryItem");
         }
         [Authorize]
-        public List<InventoryItem> GetInventoryItems(int SelectedInventory)
+        public List<InventoryItem> GetInventoryItems(int[] selectedInventories)
         {
             using (var context = _dbContextFactory.CreateDbContext())
             {
@@ -117,9 +113,102 @@ namespace EntityEquity.Hubs
                         join im in context.InventoryManagers!
                             on ii.Inventory.InventoryId equals im.Inventory.InventoryId
                         where im.UserId == _userManager.GetUserId(Context.User)
-                            && ii.Inventory.InventoryId == SelectedInventory
+                            && im.Role == InventoryManagerRoles.Administrator
+                            && selectedInventories.Contains(ii.Inventory.InventoryId) 
                         select ii).ToList();
             }
         }
+        [Authorize]
+        public async Task AddOfferings(OfferingModel model)
+        {
+            using (var context = _dbContextFactory.CreateDbContext())
+            {
+                foreach (var propertyId in model.PropertyIds)
+                {
+                    foreach (var inventoryItemId in model.InventoryItemIds)
+                    {
+                        InventoryItem? item = (from ii in context.InventoryItems
+                                              join i in context.Inventories!
+                                                 on ii.Inventory.InventoryId equals i.InventoryId
+                                              join im in context.InventoryManagers!
+                                                  on i.InventoryId equals im.Inventory.InventoryId
+                                              where im.Role == InventoryManagerRoles.Administrator
+                                                  && im.UserId == _userManager.GetUserId(Context.User)
+                                                  && ii.InventoryItemId == inventoryItemId
+                                              select ii).FirstOrDefault();
+
+                        Property? property = (from p in context.Properties
+                                             join pm in context.PropertyManagers!
+                                                on p.PropertyId equals pm.Property.PropertyId
+                                             where pm.Role == PropertyManagerRoles.Administrator
+                                                && pm.UserId == _userManager.GetUserId(Context.User)
+                                                && p.PropertyId == propertyId
+                                             select p).FirstOrDefault();
+
+                        if (item is not null && property is not null)
+                        {
+                            Offering offering = new Offering();
+                            offering.Slug = model.Slug;
+                            offering.Name = model.Name;
+                            offering.Description = model.Description;
+                            offering.InventoryItem = item;
+
+                            context.Offerings!.Add(offering);
+                            context.SaveChanges();
+
+                            PropertyOfferingMapping mapping = new PropertyOfferingMapping();
+                            mapping.Offering = offering;
+                            mapping.Property = property;
+
+                            context.PropertyOfferingMappings!.Add(mapping);
+
+                            OfferingManager offeringManager = new() { Offering = offering, UserId = _userManager.GetUserId(Context.User), Role = OfferingManagerRoles.Administrator };
+                            context.Attach<Offering>(offering);
+                            context.OfferingManagers!.Add(offeringManager);
+
+                            context.SaveChanges();
+                        }
+                    }
+                }
+            }
+            await Clients.Caller.SendAsync("OnAddedOffering");
+        }
+        [Authorize]
+        public List<OfferingWithProperty> GetOfferings(int[] propertyIds, int[] inventoryIds)
+        {
+            using (var context = _dbContextFactory.CreateDbContext())
+            {
+                var offerings = (from o in context.Offerings!.Include("InventoryItem")
+                        join om in context.OfferingManagers!
+                            on o.OfferingId equals om.Offering.OfferingId
+                        join pom in context.PropertyOfferingMappings!
+                            on o.OfferingId equals pom.Offering!.OfferingId
+                        join p in context.Properties!
+                            on pom.Property!.PropertyId equals p.PropertyId
+                        join pm in context.PropertyManagers!
+                            on pom.Property!.PropertyId equals pm.Property.PropertyId
+                        join ii in context.InventoryItems!
+                            on o.InventoryItem.InventoryItemId equals ii.InventoryItemId
+                        join im in context.InventoryManagers!
+                            on o.InventoryItem.Inventory.InventoryId equals im.Inventory.InventoryId
+                        where om.UserId == _userManager.GetUserId(Context.User)
+                            && om.Role == OfferingManagerRoles.Administrator
+                            && pm.UserId == _userManager.GetUserId(Context.User)
+                            && pm.Role == PropertyManagerRoles.Administrator
+                            && im.UserId == _userManager.GetUserId(Context.User)
+                            && im.Role == InventoryManagerRoles.Administrator
+                            && propertyIds.Contains(pom.Property!.PropertyId)
+                            && inventoryIds.Contains(o.InventoryItem.Inventory.InventoryId)
+                        select new OfferingWithProperty() { Offering = o, Property = p }).ToList();
+
+                return offerings;
+            }
+        }
+    }
+    [Serializable]
+    public class OfferingWithProperty
+    {
+        public Offering? Offering;
+        public Property? Property;
     }
 }
