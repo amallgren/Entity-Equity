@@ -1,0 +1,14 @@
+﻿@page "/prop/{slug}"
+@model EntityEquity.Pages.PropIndexModel
+@{
+    Layout = "_LayoutProp";
+}
+@using EntityEquity.Components
+@using EntityEquity.Data
+
+<div style="display:flex;">
+@foreach (Offering offering in Model.Offerings)
+{
+    @(await Html.RenderComponentAsync(typeof(PropOffering), RenderMode.ServerPrerendered, new { Offering = offering }))
+}
+</div>

@@ -1,0 +1,12 @@
+﻿@using EntityEquity.Data;
+
+<div class="prop-offering">
+    <div>@Offering.Name</div>
+    <div>@Offering.Description</div>
+    <div>@Offering.Price</div>
+</div>
+
+@code {
+    [Parameter]
+    public Offering Offering { get; set; }
+}

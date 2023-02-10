@@ -152,6 +152,7 @@ namespace EntityEquity.Hubs
                             offering.Name = model.Name;
                             offering.Description = model.Description;
                             offering.InventoryItem = item;
+                            offering.Price = model.Price;
 
                             context.Offerings!.Add(offering);
                             context.SaveChanges();
