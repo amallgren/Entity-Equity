@@ -94,7 +94,7 @@
 
         hubConnection.On("OnAddedOffering", async () =>
         {
-            await HubContext.Clients.All.SendAsync("UpdateOfferings", model);
+            await HubContext.Clients.All.SendAsync("UpdateOfferings");
         });
 
         await hubConnection.StartAsync();
