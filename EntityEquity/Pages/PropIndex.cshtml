@@ -5,10 +5,13 @@
 }
 @using EntityEquity.Components
 @using EntityEquity.Data
-
+@using static EntityEquity.Pages.PropIndexModel
+@{
+    var cookie = HttpContext.Request.Cookies[".AspNetCore.Identity.Application"];
+}
 <div style="display:flex;">
-@foreach (Offering offering in Model.Offerings)
+@foreach (OfferingWithOrderItem offering in Model.Offerings)
 {
-    @(await Html.RenderComponentAsync(typeof(PropOffering), RenderMode.ServerPrerendered, new { Offering = offering }))
+    @(await Html.RenderComponentAsync(typeof(PropOffering), RenderMode.ServerPrerendered, new { Offering = offering, Cookie = cookie }))
 }
 </div>

@@ -17,25 +17,29 @@ namespace EntityEquity.Pages
         {
             Slug = slug;
         }
-        public List<Offering> Offerings
+        public List<OfferingWithOrderItem> Offerings
         {
             get
             {
                 return GetOfferings();
             }
         }
-        private List<Offering> GetOfferings()
+        private List<OfferingWithOrderItem> GetOfferings()
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
                 var offerings = (from o in dbContext.Offerings
-                                join pom in dbContext.PropertyOfferingMappings!
+                                 join oi in dbContext.OrderItems
+                                    on o.OfferingId equals oi.Offering.OfferingId into oie
+                                from oi in oie.DefaultIfEmpty()
+                                 join pom in dbContext.PropertyOfferingMappings!
                                     on o.OfferingId equals pom.Offering!.OfferingId
                                 where pom.Property!.PropertyId == Property.PropertyId
-                                select o).ToList();
+                                select new OfferingWithOrderItem { Offering = o, OrderItem = oi }).ToList();
                 return offerings;
             }
         }
+
         public Property Property
         {
             get

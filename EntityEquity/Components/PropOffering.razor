@@ -1,12 +1,71 @@
-﻿@using EntityEquity.Data;
-
+﻿@using EntityEquity.Common
+@using EntityEquity.Data
+@using EntityEquity.Hubs
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@inject CookieBridgeConnection CookieBridgeConnection
+@inject IHubContext<EntityHub> HubContext
 <div class="prop-offering">
-    <div>@Offering.Name</div>
-    <div>@Offering.Description</div>
-    <div>@Offering.Price</div>
+    <div>@Offering.Offering.Name</div>
+    <div>@Offering.Offering.Description</div>
+    <div>@Offering.Offering.Price</div>
+    <div>
+        <button @onclick="OnDecreaseClick" type="button" disabled="@DisableDecrease">-</button>
+        <input type="number" @onchange="OnCountChange" value="@Count" />
+        <button @onclick="OnIncreaseClick" type="button">+</button>
+    </div>
 </div>
 
 @code {
     [Parameter]
-    public Offering Offering { get; set; }
+    public OfferingWithOrderItem Offering { get; set; }
+    [Parameter]
+    public string Cookie { get; set; }
+    public int Count { get; set; } = 0;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
+
+        hubConnection.On("OnModifyOrder", async () =>
+        {
+            await HubContext.Clients.All.SendAsync("UpdateOrders");
+        });
+
+        await hubConnection.StartAsync();
+    }
+    private bool DisableDecrease 
+    {
+        get
+        {
+            return Count == 0;
+        }
+    }
+    private void OnCountChange(ChangeEventArgs args)
+    {
+        UpdateOrder();
+    }
+    private void OnDecreaseClick()
+    {
+        if (Count>0)
+        {
+            Count--;
+            UpdateOrder();
+        }
+    }
+    private void OnIncreaseClick()
+    {
+        Count++;
+        UpdateOrder();
+    }
+
+    private void UpdateOrder()
+    {
+        if (hubConnection is not null)
+        {
+            OrderItem item = new() { Offering = Offering.Offering, Quantity = Count };
+            hubConnection.SendAsync("UpdateOrder", item);
+        }
+    }
 }

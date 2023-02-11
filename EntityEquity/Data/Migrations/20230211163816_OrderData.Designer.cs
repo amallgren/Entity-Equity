@@ -4,6 +4,7 @@ using EntityEquity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EntityEquity.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230211163816_OrderData")]
+    partial class OrderData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -180,7 +182,7 @@ namespace EntityEquity.Data.Migrations
                     b.Property<int?>("OfferingId")
                         .HasColumnType("int");
 
-                    b.Property<int>("OrderId")
+                    b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
                     b.Property<int>("Quantity")
@@ -515,15 +517,11 @@ namespace EntityEquity.Data.Migrations
                         .WithMany()
                         .HasForeignKey("OfferingId");
 
-                    b.HasOne("EntityEquity.Data.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("EntityEquity.Data.Order", null)
+                        .WithMany("Items")
+                        .HasForeignKey("OrderId");
 
                     b.Navigation("Offering");
-
-                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.PropertyManager", b =>
@@ -601,6 +599,11 @@ namespace EntityEquity.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.Order", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

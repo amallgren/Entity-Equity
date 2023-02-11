@@ -24,3 +24,7 @@ body {
 .prop-offering {
     margin:10px;
 }
+.prop-offering input {
+    text-align: center;
+    width: 100px;
+}

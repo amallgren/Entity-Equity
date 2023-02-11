@@ -18,6 +18,8 @@ namespace EntityEquity.Data
         public DbSet<Inventory>? Inventories { get; set; }
         public DbSet<InventoryManager>? InventoryManagers { get; set; }
         public DbSet<InventoryItem>? InventoryItems { get; set; }
+        public DbSet<Order>? Orders { get; set; }
+        public DbSet<OrderItem>? OrderItems { get; set; }
     }
     [Serializable]
     public class Property
@@ -162,4 +164,24 @@ namespace EntityEquity.Data
     }
     [Serializable]
     public enum InventoryManagerRoles { Administrator };
+
+    public class Order
+    {
+        public int OrderId { get; set; }
+        public string? UserId { get; set; }
+        public OrderState State { get; set; }
+    }
+    public enum OrderState { Incomplete, Complete }
+    public class OrderItem
+    {
+        public int OrderItemId { get; set; }
+        public Order Order { get; set; }
+        public Offering? Offering { get; set; }
+        public int Quantity { get; set; }
+    }
+    public class OfferingWithOrderItem
+    {
+        public Offering? Offering { get; set; }
+        public OrderItem? OrderItem { get; set; }
+    }
 }

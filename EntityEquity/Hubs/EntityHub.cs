@@ -205,6 +205,48 @@ namespace EntityEquity.Hubs
                 return offerings;
             }
         }
+        [Authorize]
+        public async Task UpdateOrder(OrderItem item)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                Order? existingOrder = (from o in dbContext.Orders
+                            where o.UserId == _userManager.GetUserId(Context.User)
+                                && o.State == OrderState.Incomplete
+                            select o).FirstOrDefault();
+                if (existingOrder is null)
+                {
+                    existingOrder = new() { UserId = _userManager.GetUserId(Context.User), State = OrderState.Incomplete };
+                    dbContext.Orders!.Add(existingOrder);
+                }
+                else
+                {
+                    var eItem = (from i in dbContext.OrderItems
+                                    join o in dbContext.Orders
+                                    on i.Order.OrderId equals o.OrderId
+                                    where o.UserId == _userManager.GetUserId(Context.User) 
+                                    && o.State == OrderState.Incomplete
+                                    && i.Offering!.OfferingId == item.Offering!.OfferingId
+                                    select i).FirstOrDefault();
+                    if (eItem is not null)
+                    {
+                        eItem.Quantity = item.Quantity;
+                    }
+                    else
+                    {
+                        item.Order = existingOrder;
+                        if (item.Offering is not null)
+                        { 
+                            dbContext.Attach(item.Offering);
+                            dbContext.OrderItems!.Add(item);
+                        }
+                    }
+                    dbContext.Update(existingOrder);
+                }
+                dbContext.SaveChanges();
+            }
+            await Clients.Caller.SendAsync("OnUpdatedOrder");
+        } 
     }
     [Serializable]
     public class OfferingWithProperty
