@@ -8,7 +8,7 @@
 <div class="prop-offering">
     <div>@Offering.Offering.Name</div>
     <div>@Offering.Offering.Description</div>
-    <div>@Offering.Offering.Price</div>
+    <div>$@Offering.Offering.Price</div>
     <div>
         <button @onclick="OnDecreaseClick" type="button" disabled="@DisableDecrease">-</button>
         <input type="number" @onchange="OnCountChange" value="@Count" />
@@ -34,6 +34,15 @@
         });
 
         await hubConnection.StartAsync();
+
+        SetCount();
+    }
+    private void SetCount()
+    {
+        if (Offering.OrderItem is not null)
+        {
+            Count = Offering.OrderItem.Quantity;  
+        }
     }
     private bool DisableDecrease 
     {
