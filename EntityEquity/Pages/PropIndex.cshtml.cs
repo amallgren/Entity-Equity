@@ -1,7 +1,10 @@
 using EntityEquity.Data;
+using EntityEquity.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace EntityEquity.Pages
 {
@@ -9,35 +12,13 @@ namespace EntityEquity.Pages
     {
         public string Slug { get; set; }
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
-        public PropIndexModel(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        public PropIndexModel(IDbContextFactory<ApplicationDbContext> dbContextFactory, CookieBridgeConnection cookieBridgeConnection)
         {
             _dbContextFactory = dbContextFactory;
         }
         public void OnGet(string slug)
         {
             Slug = slug;
-        }
-        public List<OfferingWithOrderItem> Offerings
-        {
-            get
-            {
-                return GetOfferings();
-            }
-        }
-        private List<OfferingWithOrderItem> GetOfferings()
-        {
-            using (var dbContext = _dbContextFactory.CreateDbContext())
-            {
-                var offerings = (from o in dbContext.Offerings
-                                 join oi in dbContext.OrderItems
-                                    on o.OfferingId equals oi.Offering.OfferingId into oie
-                                from oi in oie.DefaultIfEmpty()
-                                 join pom in dbContext.PropertyOfferingMappings!
-                                    on o.OfferingId equals pom.Offering!.OfferingId
-                                where pom.Property!.PropertyId == Property.PropertyId
-                                select new OfferingWithOrderItem { Offering = o, OrderItem = oi }).ToList();
-                return offerings;
-            }
         }
 
         public Property Property

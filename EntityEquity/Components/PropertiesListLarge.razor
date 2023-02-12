@@ -3,19 +3,19 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @inject CookieBridgeConnection CookieBridgeConnection
 
-<div style="display:flex">
+<div style="display:flex; flex-wrap:wrap;">
     @if (Properties is not null)
     {
         foreach(Property property in Properties)
         {
-            <div>
-                <h2>@property.Name</h2>
-                <div>@property.Slug</div>
+            <div class="property-tile">
+                <div class="name">@property.Name</div>
+                <div>Slug: @property.Slug</div>
             </div>
         }
     }
 
-    <div>
+    <div style="margin:auto 8px auto 8px;">
         <div>
             <button type="button" data-bs-toggle="modal" data-bs-target="#addPropertyModal">Add A Property</button>
         </div>

@@ -1,0 +1,26 @@
+﻿@using EntityEquity.Data
+
+<div>
+    <div>
+    @Offering.Name
+    </div>
+    <div style="margin-left:35px; display:flex; justify-content: space-between;">
+        <div>
+            @@ $@Offering.Price X @OrderItem.Quantity
+        </div>
+        <div>
+            $@(Offering.Price*OrderItem.Quantity)
+        </div>
+    </div>
+    <div style="text-align:right;">
+        
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Offering? Offering { get; set; }
+    [Parameter]
+    public OrderItem? OrderItem { get; set; }
+
+}

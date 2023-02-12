@@ -184,4 +184,9 @@ namespace EntityEquity.Data
         public Offering? Offering { get; set; }
         public OrderItem? OrderItem { get; set; }
     }
+    public class OfferingWithProperty
+    {
+        public Offering? Offering;
+        public Property? Property;
+    }
 }

@@ -28,20 +28,23 @@
     {
         hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
 
-        hubConnection.On("OnModifyOrder", async () =>
+        hubConnection.On("OnUpdatedOrder", async () =>
         {
             await HubContext.Clients.All.SendAsync("UpdateOrders");
         });
 
         await hubConnection.StartAsync();
-
-        SetCount();
     }
-    private void SetCount()
+    protected override async Task OnParametersSetAsync()
+    {
+        await SetCount();
+    }
+    private async Task SetCount()
     {
         if (Offering.OrderItem is not null)
         {
-            Count = Offering.OrderItem.Quantity;  
+            Count = Offering.OrderItem.Quantity;
+            await InvokeAsync(StateHasChanged);
         }
     }
     private bool DisableDecrease 
@@ -53,7 +56,11 @@
     }
     private void OnCountChange(ChangeEventArgs args)
     {
-        UpdateOrder();
+        if (args.Value is not null)
+        {
+            Count = int.Parse((string)args.Value);
+            UpdateOrder();
+        }
     }
     private void OnDecreaseClick()
     {

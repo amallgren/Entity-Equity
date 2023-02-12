@@ -29,7 +29,7 @@ builder.Services.AddResponseCompression(opts =>
         new[] { "application/octet-stream" });
 });
 
-builder.Services.AddHttpClient("DefaultHttpClient", client => client.BaseAddress = new Uri("https://localhost:7055/"));
+builder.Services.AddHttpClient("DefaultHttpClient", client => client.BaseAddress = new Uri(builder.Configuration.GetValue<string>("BaseAddress")));
 
 builder.Services.AddTransient<CookieBridge>();
 builder.Services.AddTransient<CookieBridgeConnection>();

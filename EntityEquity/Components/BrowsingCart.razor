@@ -1,0 +1,54 @@
+﻿@using EntityEquity.Common
+@using EntityEquity.Components
+@using EntityEquity.Data
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@using Newtonsoft.Json
+@inject CookieBridgeConnection CookieBridgeConnection
+@inject IHttpClientFactory HttpClientFactory
+<h3>Cart</h3>
+
+@if (Items is not null)
+{
+    Total = 0;
+    foreach(OfferingWithOrderItem item in Items)
+    {
+        Total += item.Offering.Price * item.OrderItem.Quantity;
+        <BrowsingCartItem Offering=@item.Offering OrderItem=@item.OrderItem></BrowsingCartItem>
+    }
+}
+<div style="display:flex;justify-content: space-between; margin-top:15px; font-weight:bold;">
+<span>Total</span><span style="text-align:right">$@Total</span>
+</div>
+
+@code {
+    [Parameter]
+    public string Cookie { get; set; }
+
+    private List<OfferingWithOrderItem> Items { get; set; }
+    private decimal Total { get; set; }
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
+        
+        hubConnection.On("UpdateOrders", async () =>
+        {
+            await RefreshCart();
+        });
+
+        await hubConnection.StartAsync();
+
+        await RefreshCart();
+    }
+    private async Task RefreshCart()
+    {
+        HttpClient httpClient = CookieBridgeConnection.GetHttpClient(Cookie!);
+        var response = await httpClient.GetStringAsync(
+            $"api/Cart");
+        Items = JsonConvert.DeserializeObject<List<OfferingWithOrderItem>>(response)!;
+
+        await InvokeAsync(StateHasChanged);
+    }
+}

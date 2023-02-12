@@ -28,3 +28,15 @@ body {
     text-align: center;
     width: 100px;
 }
+
+.property-tile {
+    border: 1px solid grey;
+    border-radius: 10px;
+    padding: 4px 7px 7px 7px;
+    margin: 8px;
+}
+
+.property-tile .name {
+    font-size: 1rem;
+    font-weight: bold;
+}

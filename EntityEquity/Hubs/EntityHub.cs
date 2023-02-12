@@ -175,37 +175,6 @@ namespace EntityEquity.Hubs
             await Clients.Caller.SendAsync("OnAddedOffering");
         }
         [Authorize]
-        public List<OfferingWithProperty> GetOfferings(int[] propertyIds, int[] inventoryIds)
-        {
-            using (var context = _dbContextFactory.CreateDbContext())
-            {
-                var offerings = (from o in context.Offerings!.Include("InventoryItem")
-                        join om in context.OfferingManagers!
-                            on o.OfferingId equals om.Offering.OfferingId
-                        join pom in context.PropertyOfferingMappings!
-                            on o.OfferingId equals pom.Offering!.OfferingId
-                        join p in context.Properties!
-                            on pom.Property!.PropertyId equals p.PropertyId
-                        join pm in context.PropertyManagers!
-                            on pom.Property!.PropertyId equals pm.Property.PropertyId
-                        join ii in context.InventoryItems!
-                            on o.InventoryItem.InventoryItemId equals ii.InventoryItemId
-                        join im in context.InventoryManagers!
-                            on o.InventoryItem.Inventory.InventoryId equals im.Inventory.InventoryId
-                        where om.UserId == _userManager.GetUserId(Context.User)
-                            && om.Role == OfferingManagerRoles.Administrator
-                            && pm.UserId == _userManager.GetUserId(Context.User)
-                            && pm.Role == PropertyManagerRoles.Administrator
-                            && im.UserId == _userManager.GetUserId(Context.User)
-                            && im.Role == InventoryManagerRoles.Administrator
-                            && propertyIds.Contains(pom.Property!.PropertyId)
-                            && inventoryIds.Contains(o.InventoryItem.Inventory.InventoryId)
-                        select new OfferingWithProperty() { Offering = o, Property = p }).ToList();
-
-                return offerings;
-            }
-        }
-        [Authorize]
         public async Task UpdateOrder(OrderItem item)
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
@@ -247,11 +216,5 @@ namespace EntityEquity.Hubs
             }
             await Clients.Caller.SendAsync("OnUpdatedOrder");
         } 
-    }
-    [Serializable]
-    public class OfferingWithProperty
-    {
-        public Offering? Offering;
-        public Property? Property;
     }
 }
