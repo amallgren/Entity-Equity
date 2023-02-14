@@ -1,3 +1,6 @@
+using Blazorise;
+using Blazorise.Bootstrap;
+using Blazorise.Icons.FontAwesome;
 using EntityEquity.Data;
 using EntityEquity.Hubs;
 using Microsoft.AspNetCore.Identity;
@@ -33,6 +36,13 @@ builder.Services.AddHttpClient("DefaultHttpClient", client => client.BaseAddress
 
 builder.Services.AddTransient<CookieBridge>();
 builder.Services.AddTransient<CookieBridgeConnection>();
+
+builder.Services.AddBlazorise(options =>
+{
+   options.Immediate = true;
+})
+    .AddBootstrapProviders()
+    .AddFontAwesomeIcons();
 
 var app = builder.Build();
 
