@@ -12,7 +12,7 @@ namespace EntityEquity.Pages
     {
         public string Slug { get; set; }
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
-        public PropIndexModel(IDbContextFactory<ApplicationDbContext> dbContextFactory, CookieBridgeConnection cookieBridgeConnection)
+        public PropIndexModel(IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
             _dbContextFactory = dbContextFactory;
         }

@@ -192,6 +192,11 @@ namespace EntityEquity.Data
         public Offering? Offering;
         public Property? Property;
     }
+    public class OfferingWithInventoryItem
+    {
+        public Offering? Offering;
+        public InventoryItem? InventoryItem;
+    }
     public class Invoice
     {
         public int InvoiceId { get; set; }
