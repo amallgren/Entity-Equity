@@ -20,7 +20,7 @@
 <div style="display:flex;justify-content: space-between; margin-top:15px; font-weight:bold;">
 <span>Total</span><span style="text-align:right">$@Total</span>
 </div>
-
+<button type="button" style="width:100%; margin-top:10px;" @onclick="OnPayButtonClick">Pay</button>
 @code {
     [Parameter]
     public string Cookie { get; set; }
@@ -28,6 +28,11 @@
     private List<OfferingWithOrderItem> Items { get; set; }
     private decimal Total { get; set; }
     private HubConnection? hubConnection;
+
+    public void OnPayButtonClick()
+    {
+        hubConnection.SendAsync("FinalizeOrder");
+    }
 
     protected override async Task OnInitializedAsync()
     {

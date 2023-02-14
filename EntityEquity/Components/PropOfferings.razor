@@ -9,7 +9,7 @@
 {
     foreach (OfferingWithOrderItem offering in Offerings)
     {
-        <PropOffering Offering=@offering Cookie=@Cookie></PropOffering>
+        <PropOffering Offering=@offering Property=@Property Cookie=@Cookie></PropOffering>
     }
 }
 
@@ -17,7 +17,7 @@
     [Parameter]
     public string Cookie { get; set; }
     [Parameter]
-    public int PropertyId { get; set; }
+    public Property Property { get; set; }
     private List<OfferingWithOrderItem> Offerings { get; set; }
     private HubConnection? hubConnection;
     protected override async Task OnInitializedAsync()
@@ -36,7 +36,7 @@
     {
         HttpClient httpClient = CookieBridgeConnection.GetHttpClient(Cookie!);
         var response = await httpClient.GetStringAsync(
-            $"api/PropOffering?propertyId={PropertyId}");
+            $"api/PropOffering?propertyId={Property.PropertyId}");
         Offerings = JsonConvert.DeserializeObject<List<OfferingWithOrderItem>>(response)!;
 
         await InvokeAsync(StateHasChanged);

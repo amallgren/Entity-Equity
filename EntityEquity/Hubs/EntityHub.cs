@@ -46,6 +46,15 @@ namespace EntityEquity.Hubs
                         select p).ToList();
             }
         }
+        public Property GetProperty(int propertyId)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                return (from p in dbContext.Properties
+                                where p.PropertyId == propertyId
+                                select p).FirstOrDefault();
+            }
+        }
         [Authorize]
         public async Task AddAnInventory(InventoryModel model)
         {
@@ -187,34 +196,73 @@ namespace EntityEquity.Hubs
                 {
                     existingOrder = new() { UserId = _userManager.GetUserId(Context.User), State = OrderState.Incomplete };
                     dbContext.Orders!.Add(existingOrder);
+                    await dbContext.SaveChangesAsync();
+                    await CreateOrderItem(existingOrder, item);
                 }
                 else
                 {
-                    var eItem = (from i in dbContext.OrderItems
-                                    join o in dbContext.Orders
-                                    on i.Order.OrderId equals o.OrderId
-                                    where o.UserId == _userManager.GetUserId(Context.User) 
-                                    && o.State == OrderState.Incomplete
-                                    && i.Offering!.OfferingId == item.Offering!.OfferingId
-                                    select i).FirstOrDefault();
-                    if (eItem is not null)
-                    {
-                        eItem.Quantity = item.Quantity;
-                    }
-                    else
-                    {
-                        item.Order = existingOrder;
-                        if (item.Offering is not null)
-                        { 
-                            dbContext.Attach(item.Offering);
-                            dbContext.OrderItems!.Add(item);
-                        }
-                    }
-                    dbContext.Update(existingOrder);
+                    await CreateOrderItem(existingOrder, item);
                 }
-                dbContext.SaveChanges();
             }
             await Clients.Caller.SendAsync("OnUpdatedOrder");
-        } 
+        }
+        private async Task CreateOrderItem(Order order, OrderItem item)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var eItem = (from i in dbContext.OrderItems
+                             join o in dbContext.Orders!
+                             on i.Order.OrderId equals o.OrderId
+                             where o.UserId == _userManager.GetUserId(Context.User)
+                             && o.State == OrderState.Incomplete
+                             && i.Offering!.OfferingId == item.Offering!.OfferingId
+                             select i).FirstOrDefault();
+                if (eItem is not null)
+                {
+                    eItem.Quantity = item.Quantity;
+                }
+                else
+                {
+                    item.Order = order;
+                    if (item.Offering is not null && item.Property is not null)
+                    {
+                        dbContext.Attach(item.Offering);
+                        dbContext.Attach(item.Property);
+                        dbContext.Attach(item.Order);
+                        dbContext.OrderItems!.Add(item);
+                    }
+                }
+                await dbContext.SaveChangesAsync();
+            }
+        }
+        public async Task FinalizeOrder()
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var ordersAndProperties = (from o in dbContext.Orders
+                                  join oi in dbContext.OrderItems!
+                                   on o.OrderId equals oi.Order!.OrderId
+                                  where o.UserId == _userManager.GetUserId(Context.User)
+                                   && o.State == OrderState.Incomplete
+                                  select new { Order = o, Property = oi.Property }).Distinct().ToList();
+                foreach (var op in ordersAndProperties)
+                {
+                    Invoice invoice = new() { Order = op.Order, Property = op.Property, UserId = _userManager.GetUserId(Context.User), ProcessedAt = DateTime.Now };
+                    var items = from oi in dbContext.OrderItems.Include(oi => oi.Offering).Include(oi => oi.Offering.InventoryItem)
+                                where oi.Order.OrderId == op.Order.OrderId
+                                    && oi.Property.PropertyId == op.Property.PropertyId
+                                select oi;
+                    dbContext.Invoices!.Add(invoice);
+                    await dbContext.SaveChangesAsync();
+                    foreach (var item in items)
+                    {
+                        InvoiceItem invoiceItem = new InvoiceItem() { Invoice = invoice, Name = item.Offering.Name, Cost = item.Offering.InventoryItem.Cost, Price = item.Offering.Price, Quantity = item.Quantity };
+                        dbContext.InvoiceItems!.Add(invoiceItem);
+                    }
+                    op.Order.State = OrderState.Complete;
+                    await dbContext.SaveChangesAsync();
+                }
+            }
+        }
     }
 }

@@ -20,6 +20,8 @@
     [Parameter]
     public OfferingWithOrderItem Offering { get; set; }
     [Parameter]
+    public Property Property { get; set; }
+    [Parameter]
     public string Cookie { get; set; }
     public int Count { get; set; } = 0;
     private HubConnection? hubConnection;
@@ -54,34 +56,34 @@
             return Count == 0;
         }
     }
-    private void OnCountChange(ChangeEventArgs args)
+    private async Task OnCountChange(ChangeEventArgs args)
     {
         if (args.Value is not null)
         {
             Count = int.Parse((string)args.Value);
-            UpdateOrder();
+            await UpdateOrder();
         }
     }
-    private void OnDecreaseClick()
+    private async Task OnDecreaseClick()
     {
         if (Count>0)
         {
             Count--;
-            UpdateOrder();
+            await UpdateOrder();
         }
     }
-    private void OnIncreaseClick()
+    private async Task OnIncreaseClick()
     {
         Count++;
-        UpdateOrder();
+        await UpdateOrder();
     }
 
-    private void UpdateOrder()
+    private async Task UpdateOrder()
     {
         if (hubConnection is not null)
         {
-            OrderItem item = new() { Offering = Offering.Offering, Quantity = Count };
-            hubConnection.SendAsync("UpdateOrder", item);
+            OrderItem item = new() { Offering = Offering.Offering, Property = Property, Quantity = Count };
+            await hubConnection.SendAsync("UpdateOrder", item);
         }
     }
 }
