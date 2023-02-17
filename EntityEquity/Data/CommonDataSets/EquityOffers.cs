@@ -67,62 +67,17 @@ namespace EntityEquity.Data.CommonDataSets
             }
             return liveOffers;
         }
-        public class LiveOffer
-        {
-            public int LiveOfferId { get; set; }
-            public int Shares { get; set; }
-            public decimal Price { get; set; }
-        }
-        public List<UserPropertyTransaction> GetUserPropertyTransactions()
-        {
-            using (var dbContext = _dbContextFactory.CreateDbContext())
-            {
-                var offers = (from o in dbContext.EquityOffers
-                              join b in dbContext.EquityTransactions
-                                 on new { BuyerId = o.UserId, PropertyId = o.Property.PropertyId }
-                                     equals new { BuyerId = b.BuyerUserId, PropertyId = b.Property.PropertyId }
-                              join s in dbContext.EquityTransactions
-                                 on new { SellerId = o.UserId, PropertyId = o.Property.PropertyId }
-                                     equals new { SellerId = s.SellerUserId, PropertyId = s.Property.PropertyId }
-                              join eteo in dbContext.EquityTransactions
-                                 on o.EquityOfferId equals eteo.EquityOffer.EquityOfferId into eteon
-                              from etjeo in eteon.DefaultIfEmpty()
-                              where o.Property.Slug == _slug
-                              group new { o, b, s, etjeo } by
-                                 new
-                                 {
-                                     o.UserId,
-                                     o.Shares,
-                                     o.Price,
-                                     b.BuyerUserId,
-                                     s.SellerUserId,
-                                     etjeo.EquityOffer.EquityOfferId
-                                 } into uo
-                              select new UserPropertyTransaction()
-                              {
-                                  UserId = uo.Key.UserId,
-                                  Price = uo.Key.Price,
-                                  EquityOfferId = uo.Key.EquityOfferId,
-                                  SharesRemaining = uo.Key.Shares,
-                                  Buys = uo.Sum(b => b.b.Shares),
-                                  Sells = uo.Sum(s => s.s.Shares)
-                              }).ToList();
-                return offers;
-            }
-        }
+        
+    }
+    public class LiveOffer
+    {
+        public int LiveOfferId { get; set; }
+        public int Shares { get; set; }
+        public decimal Price { get; set; }
     }
     public class UserHoldings
     {
         public int Buys;
         public int Sells;
-    }
-    public class UserPropertyTransaction
-    {
-        public string UserId { get; set; }
-        public decimal Price { get; set; }
-        public int EquityOfferId { get; set; }
-        public int SharesRemaining { get; set; }
-        public int Buys { get; set; }
-        public int Sells { get; set; }
     }
 }
