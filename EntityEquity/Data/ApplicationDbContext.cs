@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 
+
 namespace EntityEquity.Data
 {
     public class ApplicationDbContext : IdentityDbContext
@@ -22,6 +23,29 @@ namespace EntityEquity.Data
         public DbSet<OrderItem>? OrderItems { get; set; }
         public DbSet<Invoice>? Invoices { get; set; }
         public DbSet<InvoiceItem>? InvoiceItems { get; set; }
+        public DbSet<EquityOffer>? EquityOffers { get; set; }
+        public DbSet<EquityTransaction>? EquityTransactions { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<EquityTransaction>(et =>
+            {
+                et.HasOne("EntityEquity.Data.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                et.HasOne("EntityEquity.Data.EquityOffer", "EquityOffer")
+                        .WithMany()
+                        .HasForeignKey("EquityOfferId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                et.Navigation("Property");
+            });
+
+            base.OnModelCreating(modelBuilder);
+        }
     }
     [Serializable]
     public class Property
@@ -34,6 +58,9 @@ namespace EntityEquity.Data
         public int PropertyId { get; set; }
         public string Name { get; set; }
         public string Slug { get; set; }
+        public int Shares { get; set; }
+        public bool AllowEquityOffers { get; set; }
+        public bool ShowPublicInsights { get; set; }
     }
     [Serializable]
     public class PropertyManager
@@ -64,7 +91,7 @@ namespace EntityEquity.Data
         public string Slug { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
-        [Column(TypeName="decimal(18,2)")]
+        [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
     }
     [Serializable]
@@ -215,5 +242,25 @@ namespace EntityEquity.Data
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
         public int Quantity { get; set; }
+    }
+    public class EquityOffer
+    {
+        public int EquityOfferId { get; set; }
+        public Property Property { get; set; }
+        public string UserId { get; set; }
+        public int Shares { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Price { get; set; }
+    }
+    public class EquityTransaction
+    {
+        public int EquityTransactionId { get; set; }
+        public EquityOffer? EquityOffer { get; set; }
+        public Property Property { get; set; }
+        public string SellerUserId { get; set; }
+        public string BuyerUserId { get; set; }
+        public int Shares { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Price { get; set; }
     }
 }

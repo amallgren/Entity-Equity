@@ -34,6 +34,30 @@
                     <label class="col-md-4">Name</label>
                     <input id="addPropertyName" class="col-md-8" type="text" @bind-value="model.Name" />
                 </div>
+                <div class="row">
+                    @{
+                        string sharesTitle = "Number of shares that can be sold. Profits from sales will be distributed according to the number of shares that are held. Enter 1 if you do not want to sell shares in the future.";
+                    }
+                    <label class="col-md-4" title="@sharesTitle">Shares</label>
+                    <input id="addPropertyShares" class="col-md-8" type="text" title="@sharesTitle" @bind-value="model.Shares" />
+                </div>
+                <div class="row">
+                        @{
+                            string equityOffersTitle = "Allow people to send offers to purchase equity in your property.";
+                        }
+                    <label class="col-md-4" title="@equityOffersTitle">Equity Offers</label>
+                    <input id="addPropertyEquityOffers" class="col-md-8" type="checkbox" title="@equityOffersTitle" @bind-value="model.EquityOffers" />
+                </div>
+                <div class="row">
+                        @{
+                            string publicInsightsTitle = "Allow the public to view product catalog, sales, margins, etc.";
+                        }
+                    <label class="col-md-4" title="@publicInsightsTitle">Public Insights</label>
+                    <input id="addPropertyPublicInsights" class="col-md-8" type="checkbox" title="@publicInsightsTitle" @bind-value="model.PublicInsights" />
+                </div>
+                <div class="row" style=" margin-top:10px;width:100%">
+                    <span style="text-align:center;">Hover over the fields to view additional information.</span>
+                </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

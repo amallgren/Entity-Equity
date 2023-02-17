@@ -15,6 +15,10 @@ namespace EntityEquity.Models
         public string Name { get; set; }
         [Required]
         public string Slug { get; set; }
+        [Required]
+        public int Shares { get; set; }
+        public bool EquityOffers { get; set; }
+        public bool PublicInsights { get; set; }
         public List<PropertyManager> PropertyManagers { get; set; }
     }
 }

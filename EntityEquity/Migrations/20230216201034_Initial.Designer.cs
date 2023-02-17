@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace EntityEquity.Data.Migrations
+namespace EntityEquity.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20230214002347_AddingCostToInvoice")]
-    partial class AddingCostToInvoice
+    [Migration("20230216201034_Initial")]
+    partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -23,6 +23,71 @@ namespace EntityEquity.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+
+            modelBuilder.Entity("EntityEquity.Data.EquityOffer", b =>
+                {
+                    b.Property<int>("EquityOfferId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EquityOfferId"), 1L, 1);
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PropertyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Shares")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("EquityOfferId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("EquityOffers");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.EquityTransaction", b =>
+                {
+                    b.Property<int>("EquityTransactionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EquityTransactionId"), 1L, 1);
+
+                    b.Property<string>("BuyerUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EquityOfferId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PropertyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SellerUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Shares")
+                        .HasColumnType("int");
+
+                    b.HasKey("EquityTransactionId");
+
+                    b.HasIndex("EquityOfferId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("EquityTransactions");
+                });
 
             modelBuilder.Entity("EntityEquity.Data.Inventory", b =>
                 {
@@ -270,9 +335,18 @@ namespace EntityEquity.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PropertyId"), 1L, 1);
 
+                    b.Property<bool>("AllowEquityOffers")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Shares")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ShowPublicInsights")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -530,6 +604,36 @@ namespace EntityEquity.Data.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.EquityOffer", b =>
+                {
+                    b.HasOne("EntityEquity.Data.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.EquityTransaction", b =>
+                {
+                    b.HasOne("EntityEquity.Data.EquityOffer", "EquityOffer")
+                        .WithMany()
+                        .HasForeignKey("EquityOfferId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("EntityEquity.Data.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("EquityOffer");
+
+                    b.Navigation("Property");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.InventoryItem", b =>

@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace EntityEquity.Data.Migrations
+namespace EntityEquity.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20230123232237_FixingTypoInOfferingPriceColumnSpecification")]
-    partial class FixingTypoInOfferingPriceColumnSpecification
+    [Migration("20230216203652_TroubleshootingNonNullColumnOnEquityTransaction")]
+    partial class TroubleshootingNonNullColumnOnEquityTransaction
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -23,6 +23,71 @@ namespace EntityEquity.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+
+            modelBuilder.Entity("EntityEquity.Data.EquityOffer", b =>
+                {
+                    b.Property<int>("EquityOfferId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EquityOfferId"), 1L, 1);
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PropertyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Shares")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("EquityOfferId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("EquityOffers");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.EquityTransaction", b =>
+                {
+                    b.Property<int>("EquityTransactionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EquityTransactionId"), 1L, 1);
+
+                    b.Property<string>("BuyerUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("EquityOfferId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PropertyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SellerUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Shares")
+                        .HasColumnType("int");
+
+                    b.HasKey("EquityTransactionId");
+
+                    b.HasIndex("EquityOfferId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("EquityTransactions");
+                });
 
             modelBuilder.Entity("EntityEquity.Data.Inventory", b =>
                 {
@@ -49,6 +114,9 @@ namespace EntityEquity.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InventoryItemId"), 1L, 1);
 
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("InventoryId")
                         .HasColumnType("int");
 
@@ -64,10 +132,10 @@ namespace EntityEquity.Data.Migrations
 
                     b.HasIndex("InventoryId");
 
-                    b.ToTable("InventoryItem");
+                    b.ToTable("InventoryItems");
                 });
 
-            modelBuilder.Entity("EntityEquity.Data.InventoryManagers", b =>
+            modelBuilder.Entity("EntityEquity.Data.InventoryManager", b =>
                 {
                     b.Property<int>("InventoryManagerId")
                         .ValueGeneratedOnAdd()
@@ -92,6 +160,66 @@ namespace EntityEquity.Data.Migrations
                     b.ToTable("InventoryManagers");
                 });
 
+            modelBuilder.Entity("EntityEquity.Data.Invoice", b =>
+                {
+                    b.Property<int>("InvoiceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceId"), 1L, 1);
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("InvoiceId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("Invoices");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.InvoiceItem", b =>
+                {
+                    b.Property<int>("InvoiceItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceItemId"), 1L, 1);
+
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("InvoiceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("InvoiceItemId");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.ToTable("InvoiceItems");
+                });
+
             modelBuilder.Entity("EntityEquity.Data.Offering", b =>
                 {
                     b.Property<int>("OfferingId")
@@ -112,13 +240,91 @@ namespace EntityEquity.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
-                        .HasColumnType("decimal(15,2)");
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("OfferingId");
 
                     b.HasIndex("InventoryItemId");
 
                     b.ToTable("Offerings");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.OfferingManager", b =>
+                {
+                    b.Property<int>("OfferingManagerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OfferingManagerId"), 1L, 1);
+
+                    b.Property<int>("OfferingId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("OfferingManagerId");
+
+                    b.HasIndex("OfferingId");
+
+                    b.ToTable("OfferingManagers");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.Order", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderId"), 1L, 1);
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("OrderId");
+
+                    b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.OrderItem", b =>
+                {
+                    b.Property<int>("OrderItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderItemId"), 1L, 1);
+
+                    b.Property<int?>("OfferingId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("OrderItemId");
+
+                    b.HasIndex("OfferingId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("OrderItems");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.Property", b =>
@@ -129,9 +335,18 @@ namespace EntityEquity.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PropertyId"), 1L, 1);
 
+                    b.Property<bool>("AllowEquityOffers")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Shares")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ShowPublicInsights")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -391,6 +606,35 @@ namespace EntityEquity.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("EntityEquity.Data.EquityOffer", b =>
+                {
+                    b.HasOne("EntityEquity.Data.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.EquityTransaction", b =>
+                {
+                    b.HasOne("EntityEquity.Data.EquityOffer", "EquityOffer")
+                        .WithMany()
+                        .HasForeignKey("EquityOfferId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("EntityEquity.Data.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("EquityOffer");
+
+                    b.Navigation("Property");
+                });
+
             modelBuilder.Entity("EntityEquity.Data.InventoryItem", b =>
                 {
                     b.HasOne("EntityEquity.Data.Inventory", "Inventory")
@@ -402,7 +646,7 @@ namespace EntityEquity.Data.Migrations
                     b.Navigation("Inventory");
                 });
 
-            modelBuilder.Entity("EntityEquity.Data.InventoryManagers", b =>
+            modelBuilder.Entity("EntityEquity.Data.InventoryManager", b =>
                 {
                     b.HasOne("EntityEquity.Data.Inventory", "Inventory")
                         .WithMany()
@@ -411,6 +655,30 @@ namespace EntityEquity.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Inventory");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.Invoice", b =>
+                {
+                    b.HasOne("EntityEquity.Data.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId");
+
+                    b.HasOne("EntityEquity.Data.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.InvoiceItem", b =>
+                {
+                    b.HasOne("EntityEquity.Data.Invoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("InvoiceId");
+
+                    b.Navigation("Invoice");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.Offering", b =>
@@ -422,6 +690,38 @@ namespace EntityEquity.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("InventoryItem");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.OfferingManager", b =>
+                {
+                    b.HasOne("EntityEquity.Data.Offering", "Offering")
+                        .WithMany()
+                        .HasForeignKey("OfferingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Offering");
+                });
+
+            modelBuilder.Entity("EntityEquity.Data.OrderItem", b =>
+                {
+                    b.HasOne("EntityEquity.Data.Offering", "Offering")
+                        .WithMany()
+                        .HasForeignKey("OfferingId");
+
+                    b.HasOne("EntityEquity.Data.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId");
+
+                    b.HasOne("EntityEquity.Data.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId");
+
+                    b.Navigation("Offering");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Property");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.PropertyManager", b =>

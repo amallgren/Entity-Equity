@@ -1,4 +1,5 @@
 ﻿using EntityEquity.Data;
+using EntityEquity.Data.CommonDataSets;
 using EntityEquity.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -21,7 +22,12 @@ namespace EntityEquity.Hubs
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
-                Property property = new() { Name = model.Name, Slug = model.Slug };
+                Property property = new() { 
+                    Name = model.Name, 
+                    Slug = model.Slug, 
+                    Shares = model.Shares,
+                    AllowEquityOffers = model.EquityOffers, 
+                    ShowPublicInsights = model.PublicInsights };
                 dbContext.Properties!.Add(property);
                 await dbContext.SaveChangesAsync();
 
@@ -29,6 +35,17 @@ namespace EntityEquity.Hubs
                 dbContext.Attach<Property>(propertyManager.Property);
                 dbContext.PropertyManagers!.Add(propertyManager);
 
+                EquityTransaction equityTransaction = new()
+                {
+                    BuyerUserId = _userManager.GetUserId(Context.User),
+                    Price = 0,
+                    EquityOffer = null,
+                    Property = property,
+                    Shares = model.Shares,
+                    SellerUserId = "Initial creation of shares.",
+                };
+
+                dbContext.EquityTransactions.Add(equityTransaction);
                 await dbContext.SaveChangesAsync();
             }
             await Clients.Caller.SendAsync("OnAddedProperty");
@@ -262,6 +279,30 @@ namespace EntityEquity.Hubs
                     op.Order.State = OrderState.Complete;
                     await dbContext.SaveChangesAsync();
                 }
+            }
+        }
+
+        public async Task AddEquityOffer(PrepEquityModel model)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                Data.CommonDataSets.EquityOffers dataset = new(_dbContextFactory, _userManager, Context.User, model.PropertySlug);
+                int balance = dataset.GetUserHoldings();
+
+                if (balance < model.Shares)
+                {
+                    throw new Exception("Balance is less than number of shares.");
+                }
+
+                var property = (from p in dbContext.Properties
+                               where p.Slug == model.PropertySlug
+                               select p).FirstOrDefault();
+
+                EquityOffer offer = new() { UserId = _userManager.GetUserId(Context.User), Property = property, Shares = model.Shares, Price = model.Price };
+
+                dbContext.EquityOffers.Add(offer);
+
+                await dbContext.SaveChangesAsync();
             }
         }
     }

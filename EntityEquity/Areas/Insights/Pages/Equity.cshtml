@@ -1,0 +1,38 @@
+﻿@page "/insights/equity/{slug}"
+@model EntityEquity.Areas.Insights.Pages.EquityModel
+@{
+    Layout = "_LayoutInsight";
+}
+<table id="liveOfferTable">
+    <thead>
+        <tr>
+            <th>Offer Number</th>
+            <th>Shares</th>
+            <th>Price (per share)</th>
+            <th>Total Price</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach(var liveOffer in Model.Offers)
+        {
+            <tr>
+                <td>@liveOffer.LiveOfferId</td>
+                <td>@liveOffer.Shares</td>
+                <td>@liveOffer.Price</td>
+                <td>@(liveOffer.Shares * liveOffer.Price)</td>
+                <td style="text-align:center"><button type="button">Buy Shares</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<script>
+    window.onload = function() {
+        $(document).ready(()=>
+        {
+            $('#liveOfferTable').DataTable();
+        });
+    }
+</script>
+
