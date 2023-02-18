@@ -7,38 +7,33 @@ namespace EntityEquity.Data.CommonDataSets
     {
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private UserManager<IdentityUser> _userManager;
-        private System.Security.Claims.ClaimsPrincipal? _user;
         private string? _slug;
         public EquityOffers(IDbContextFactory<ApplicationDbContext> dbContextFactory, 
             UserManager<IdentityUser> userManager, 
-            System.Security.Claims.ClaimsPrincipal? user = null,
             string? slug = null)
         {
             _dbContextFactory = dbContextFactory;
             _userManager = userManager;
-            _user = user;
             _slug = slug;
         }
-        public int GetUserHoldings()
+        public int GetUserHoldings(string offerUserId)
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
-                var holdings = (from et1 in dbContext.EquityTransactions
-                                   join et2 in dbContext.EquityTransactions
-                                        on et1.SellerUserId equals _userManager.GetUserId(_user) into ets1
-                                   from etsf1 in ets1.DefaultIfEmpty()
-                                   join et3 in dbContext.EquityTransactions
-                                       on et1.BuyerUserId equals _userManager.GetUserId(_user) into ets2
-                                   from etsf2 in ets2.DefaultIfEmpty()
-                                   join p in dbContext.Properties
-                                       on et1.Property.PropertyId equals p.PropertyId
-                                   where p.Slug == _slug
-                                group new { et1, etsf1, etsf2, p } by p.PropertyId into etg
-                                   select new UserHoldings()
-                                   {
-                                       Sells = etg.Sum(t => t.etsf1.Shares),
-                                       Buys = etg.Sum(t => t.etsf2.Shares)
-                                   }).FirstOrDefault();
+                var sells = (from et in dbContext.EquityTransactions
+                            join p in dbContext.Properties
+                                on et.Property.PropertyId equals p.PropertyId
+                            where p.Slug == _slug 
+                                && et.SellerUserId == offerUserId
+                             select et.Shares).FirstOrDefault();
+                var buys = (from et in dbContext.EquityTransactions
+                           join p in dbContext.Properties
+                                on et.Property.PropertyId equals p.PropertyId
+                           where p.Slug == _slug
+                                && et.BuyerUserId == offerUserId
+                           select et.Shares).FirstOrDefault();
+
+                var holdings = new UserHoldings() { Sells = sells, Buys = buys };
 
                 return holdings.Buys - holdings.Sells;
             }
@@ -49,26 +44,33 @@ namespace EntityEquity.Data.CommonDataSets
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
                 var offers = from eo in dbContext.EquityOffers
+                             join et in dbContext.EquityTransactions
+                                on eo.EquityOfferId equals et.EquityOffer.EquityOfferId into ete
+                             from etf in ete.DefaultIfEmpty()
                              join p in dbContext.Properties
                                 on eo.Property.PropertyId equals p.PropertyId
                              where p.Slug == _slug
-                             select new { eo, p };
+                             group new {eo, etf, p} by new { eo.EquityOfferId, eo.Shares, eo.Price, eo.MustPurchaseAll, eo.UserId } into eog
+                             select new { eog.Key.EquityOfferId, eog.Key.UserId, eog.Key.Shares, eog.Key.Price, RemainingShares = (eog.Key.Shares - eog.Sum(e => e.etf.Shares)), eog.Key.MustPurchaseAll };
 
                 foreach (var offer in offers)
                 {
-                    var balance = GetUserHoldings();
+                    var balance = GetUserHoldings(offer.UserId);
                     var liveOffer = new LiveOffer()
                     {
-                        LiveOfferId = offer.eo.EquityOfferId,
-                        Shares = balance > offer.eo.Shares ? offer.eo.Shares : balance,
-                        Price = offer.eo.Price
+                        LiveOfferId = offer.EquityOfferId,
+                        Shares = balance > offer.RemainingShares ? offer.RemainingShares : balance,
+                        Price = offer.Price,
+                        MustPurchaseAll = offer.MustPurchaseAll
                     };
-                    liveOffers.Add(liveOffer);
+                    if (liveOffer.Shares > 0)
+                    { 
+                        liveOffers.Add(liveOffer);
+                    }
                 }
             }
             return liveOffers;
         }
-        
     }
     public class LiveOffer
     {
@@ -76,6 +78,7 @@ namespace EntityEquity.Data.CommonDataSets
         public int PropertyUrl { get; set; }
         public int Shares { get; set; }
         public decimal Price { get; set; }
+        public bool MustPurchaseAll { get; set; }
     }
     public class UserHoldings
     {

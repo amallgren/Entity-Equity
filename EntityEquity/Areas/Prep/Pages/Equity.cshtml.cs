@@ -25,8 +25,8 @@ namespace EntityEquity.Areas.Prep.Pages
         }
         private int GetBalance()
         {
-            EquityOffers dataset = new(_dbContextFactory, _userManager, User, Slug);
-            var holdings = dataset.GetUserHoldings();
+            EquityOffers dataset = new(_dbContextFactory, _userManager, Slug);
+            var holdings = dataset.GetUserHoldings(_userManager.GetUserId(User));
             return holdings;
         }
     }

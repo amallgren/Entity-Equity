@@ -223,6 +223,7 @@ namespace EntityEquity.Hubs
             }
             await Clients.Caller.SendAsync("OnUpdatedOrder");
         }
+        [Authorize]
         private async Task CreateOrderItem(Order order, OrderItem item)
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
@@ -252,6 +253,7 @@ namespace EntityEquity.Hubs
                 await dbContext.SaveChangesAsync();
             }
         }
+        [Authorize]
         public async Task FinalizeOrder()
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
@@ -281,13 +283,13 @@ namespace EntityEquity.Hubs
                 }
             }
         }
-
+        [Authorize]
         public async Task AddEquityOffer(PrepEquityModel model)
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
-                Data.CommonDataSets.EquityOffers dataset = new(_dbContextFactory, _userManager, Context.User, model.PropertySlug);
-                int balance = dataset.GetUserHoldings();
+                Data.CommonDataSets.EquityOffers dataset = new(_dbContextFactory, _userManager, model.PropertySlug);
+                int balance = dataset.GetUserHoldings(_userManager.GetUserId(Context.User));
 
                 if (balance < model.Shares)
                 {
@@ -309,6 +311,43 @@ namespace EntityEquity.Hubs
 
                 await dbContext.SaveChangesAsync();
             }
+        }
+        [Authorize]
+        public List<LiveOffer> GetLiveEquityOffers(string slug)
+        {
+            EquityOffers dataset = new EquityOffers(_dbContextFactory, _userManager, slug);
+            return dataset.GetLiveOffers();
+        }
+        [Authorize]
+        public async Task BuyAllEquityForOrder(int equityOfferId)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                EquityOffer offer = (from eo in dbContext.EquityOffers.Include(e => e.Property)
+                                    where eo.EquityOfferId == equityOfferId
+                                    select eo).FirstOrDefault();
+
+                int purchasedShares = (from et in dbContext.EquityTransactions
+                                       where et.EquityOffer.EquityOfferId == equityOfferId
+                                       group et by et.EquityOffer.EquityOfferId into etg
+                                       select etg.Sum(e => e.Shares)).FirstOrDefault();
+
+                int shares = offer.Shares - purchasedShares;
+
+                EquityTransaction newTransaction = new EquityTransaction()
+                {
+                    EquityOffer = offer,
+                    BuyerUserId = _userManager.GetUserId(Context.User),
+                    Property = offer.Property,
+                    Shares = shares,
+                    SellerUserId = offer.UserId,
+                    Price = offer.Price
+                };
+
+                dbContext.EquityTransactions.Add(newTransaction);
+                await dbContext.SaveChangesAsync();
+            }
+            
         }
     }
 }

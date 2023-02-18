@@ -6,3 +6,6 @@
 function HideModal(selector) {
     $(selector).modal('hide');
 }
+function ApplyDataTable(selector) {
+    $(selector).DataTable();
+}

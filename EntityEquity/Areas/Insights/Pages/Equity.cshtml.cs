@@ -11,7 +11,6 @@ namespace EntityEquity.Areas.Insights.Pages
     public class EquityModel : PageModel
     {
         public string Slug;
-        public List<LiveOffer> Offers;
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private UserManager<IdentityUser> _userManager;
         public EquityModel(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<IdentityUser> userManager)
@@ -22,15 +21,6 @@ namespace EntityEquity.Areas.Insights.Pages
         public void OnGet(string slug)
         {
             Slug = slug;
-            GetOffers();
-        }
-        private void GetOffers()
-        {
-            using (ApplicationDbContext dbContext = _dbContextFactory.CreateDbContext())
-            {
-                EquityOffers dataset = new(_dbContextFactory, _userManager, User, Slug);
-                Offers = dataset.GetLiveOffers();
-            }
         }
     }
 }

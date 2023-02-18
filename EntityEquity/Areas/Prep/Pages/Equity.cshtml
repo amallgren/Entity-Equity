@@ -7,13 +7,15 @@
 }
 
 <div class="row">
-    <span class="col-md-4">Shares Remaining</span>
-    <span>@Model.Balance</span>
+    <span class="col-md-4">Shares Remaining: @Model.Balance</span>
 </div>
-<div>
+@if (@Model.Balance > 0)
+{
     <div>
-        <button type="button" data-bs-toggle="modal" data-bs-target="#addEquityOfferModal">Submit an offer</button>
+        <div>
+            <button type="button" data-bs-toggle="modal" data-bs-target="#addEquityOfferModal">Submit an offer</button>
+        </div>
     </div>
-</div>
+}
 
 @(await Html.RenderComponentAsync(typeof(AddEquityOfferModal), RenderMode.ServerPrerendered, new { Cookie = cookie, Model.Slug }))
