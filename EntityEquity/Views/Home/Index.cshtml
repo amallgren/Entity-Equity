@@ -6,4 +6,12 @@
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <p>Build properties, build equity, with Entity Equity.</p>
+
+@{
+    if (Context.Request.Cookies[".AspNetCore.Identity.Application"] == null)
+    {
+        <span>Please register and/or login.</span>
+    }
+}
 </div>
+ 

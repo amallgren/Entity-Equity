@@ -251,6 +251,7 @@ namespace EntityEquity.Data
         public int Shares { get; set; }
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
+        public bool MustPurchaseAll { get; set; }
     }
     public class EquityTransaction
     {

@@ -52,15 +52,16 @@ namespace EntityEquity.Data.CommonDataSets
                              join p in dbContext.Properties
                                 on eo.Property.PropertyId equals p.PropertyId
                              where p.Slug == _slug
-                             select eo;
+                             select new { eo, p };
+
                 foreach (var offer in offers)
                 {
                     var balance = GetUserHoldings();
                     var liveOffer = new LiveOffer()
                     {
-                        LiveOfferId = offer.EquityOfferId,
-                        Shares = balance > offer.Shares ? offer.Shares : balance,
-                        Price = offer.Price
+                        LiveOfferId = offer.eo.EquityOfferId,
+                        Shares = balance > offer.eo.Shares ? offer.eo.Shares : balance,
+                        Price = offer.eo.Price
                     };
                     liveOffers.Add(liveOffer);
                 }
@@ -72,6 +73,7 @@ namespace EntityEquity.Data.CommonDataSets
     public class LiveOffer
     {
         public int LiveOfferId { get; set; }
+        public int PropertyUrl { get; set; }
         public int Shares { get; set; }
         public decimal Price { get; set; }
     }

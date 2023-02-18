@@ -298,7 +298,12 @@ namespace EntityEquity.Hubs
                                where p.Slug == model.PropertySlug
                                select p).FirstOrDefault();
 
-                EquityOffer offer = new() { UserId = _userManager.GetUserId(Context.User), Property = property, Shares = model.Shares, Price = model.Price };
+                EquityOffer offer = new() { 
+                    UserId = _userManager.GetUserId(Context.User), 
+                    Property = property, 
+                    Shares = model.Shares, 
+                    Price = model.Price,
+                    MustPurchaseAll = model.MustPurchaseAll };
 
                 dbContext.EquityOffers.Add(offer);
 

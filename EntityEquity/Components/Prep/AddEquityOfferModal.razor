@@ -27,6 +27,10 @@
                     <label class="col-md-4">Price (per share)</label>
                     <input id="addEquityOfferPrice" class="col-md-8" type="text" @bind-value="model.Price" />
                 </div>
+                <div class="row">
+                    <label class="col-md-4">Must Purchase All</label>
+                    <input id="addEquityOfferPurchaseAll" class="col-md-8" type="checkbox" @bind-value="model.MustPurchaseAll" />
+                </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
