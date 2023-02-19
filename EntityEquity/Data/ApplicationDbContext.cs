@@ -25,6 +25,8 @@ namespace EntityEquity.Data
         public DbSet<InvoiceItem>? InvoiceItems { get; set; }
         public DbSet<EquityOffer>? EquityOffers { get; set; }
         public DbSet<EquityTransaction>? EquityTransactions { get; set; }
+        public DbSet<PhotoUrl>? PhotoUrls { get; set; }
+        public DbSet<OfferingPhotoUrlMapping>? OfferingPhotoUrlMappings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -112,11 +114,9 @@ namespace EntityEquity.Data
         public PhotoUrl()
         {
             Url = "";
-            Offering = new();
         }
         public int PhotoUrlId { get; set; }
         public string Url { get; set; }
-        public Offering Offering { get; set; }
     }
     [Serializable]
     public class OfferingPhotoUrlMapping
@@ -218,6 +218,7 @@ namespace EntityEquity.Data
     {
         public Offering? Offering;
         public Property? Property;
+        public List<PhotoUrl>? Photos;
     }
     public class OfferingWithInventoryItem
     {

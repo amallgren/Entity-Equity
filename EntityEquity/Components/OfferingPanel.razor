@@ -13,50 +13,65 @@
 @inject CookieBridgeConnection CookieBridgeConnection
 @inject IHttpClientFactory HttpClientFactory
 @implements IAsyncDisposable
-
-<div style="display:flex">
-    <label>Properties</label>
-    <select multiple @onchange="OnChangeProperties">
-        @foreach (var property in Properties)
-        {
-            <option value="@property.PropertyId">@property.Name</option>
-        }
-    </select>
-    <label>Inventories</label>
-    <select multiple @onchange="OnChangeInventories">
-        @foreach (var inventory in Inventories)
-        {
-            <option value="@inventory.InventoryId">@inventory.Name</option>    
-        }
-    </select>
-</div>
 <div style="display:flex;">
-    @if (OfferingsWithProperties is not null)
-    {
-        foreach(var offeringsWithProperties in OfferingsWithProperties)
-        {
-            if (@offeringsWithProperties.Offering is not null && @offeringsWithProperties.Property is not null)
-            {
-                <div>
-                    <div>
-                        <span>Inventory Item: </span><span>@offeringsWithProperties.Offering.InventoryItem.Name</span>
-                    </div>
-                    <div>
-                        <span>Property: </span><span>@offeringsWithProperties.Property.Name</span>
-                    </div>
-                    <div>
-                        @offeringsWithProperties.Offering.Name
-                    </div>
-                </div>
-           }
-        }
-    }
-    <div>
-        <div>
+    <div style="width:325px;border: solid 2px black; padding:0px 15px 15px 15px; border-radius: 10px;">
+        <h2 class="panel-section-title">Filters</h2>
+        <div style="display:grid; grid-template-columns: 2fr 5fr; row-gap: 10px">
+            <label>Properties</label>
+            <select multiple @onchange="OnChangeProperties">
+                @foreach (var property in Properties)
+                {
+                    <option value="@property.PropertyId">@property.Name</option>
+                }
+            </select>
+            <label>Inventories</label>
+            <select multiple @onchange="OnChangeInventories">
+                @foreach (var inventory in Inventories)
+                {
+                    <option value="@inventory.InventoryId">@inventory.Name</option>    
+                }
+            </select>
+        </div>
+        <h2 class="panel-section-title">Actions</h2>
+        <div style="text-align:center;">
             <button type="button" data-bs-toggle="modal" data-bs-target="#addOfferingModal">Add Offering</button>
         </div>
     </div>
+    <div style="display:flex;margin-left: 15px">
+        @if (OfferingsWithProperties is not null)
+        {
+            foreach(var offeringsWithProperties in OfferingsWithProperties)
+            {
+                if (@offeringsWithProperties.Offering is not null && @offeringsWithProperties.Property is not null)
+                {
+                    <div class="offering-panel-offering">
+                        <div class="offering-panel-image-container">
+                            @if (offeringsWithProperties.Photos is not null && offeringsWithProperties.Photos.Count > 0)
+                            {
+                                <img class="offering-panel-image" src="@offeringsWithProperties.Photos.FirstOrDefault().Url" />
+                            }
+                            else
+                            {
+                                <div class="no-image">No Image</div>
+                            }
+                        </div>
+                        <div>
+                            <span>Inventory Item: </span><span>@offeringsWithProperties.Offering.InventoryItem.Name</span>
+                        </div>
+                        <div>
+                            <span>Property: </span><span>@offeringsWithProperties.Property.Name</span>
+                        </div>
+                        <div>
+                            @offeringsWithProperties.Offering.Name
+                        </div>
+                    </div>
+                }
+            }
+        }
+    </div>
 </div>
+
+
 
 @code {
     [Parameter]

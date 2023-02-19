@@ -173,6 +173,7 @@ namespace EntityEquity.Hubs
 
                         if (item is not null && property is not null)
                         {
+
                             Offering offering = new Offering();
                             offering.Slug = model.Slug;
                             offering.Name = model.Name;
@@ -181,7 +182,19 @@ namespace EntityEquity.Hubs
                             offering.Price = model.Price;
 
                             context.Offerings!.Add(offering);
-                            context.SaveChanges();
+                            await context.SaveChangesAsync();
+                            if (model.PhotoUrl is not null)
+                            {
+                                PhotoUrl photoUrl = new() { Url = model.PhotoUrl.Url };
+                                context.PhotoUrls.Add(photoUrl);
+                                await context.SaveChangesAsync();
+
+                                OfferingPhotoUrlMapping photoMapping = new OfferingPhotoUrlMapping();
+                                photoMapping.PhotoUrl = photoUrl;
+                                photoMapping.Offering = offering;
+                                context.OfferingPhotoUrlMappings.Add(photoMapping);
+                                await context.SaveChangesAsync();
+                            }
 
                             PropertyOfferingMapping mapping = new PropertyOfferingMapping();
                             mapping.Offering = offering;

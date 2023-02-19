@@ -26,8 +26,9 @@ namespace EntityEquity.Controllers
         public object Get(string properties = "0", string inventories = "0")
         {
             var context = _dbContext;
-            int[] propertyIds = HttpUtility.UrlDecode(properties).Split(",").ToIntArray();
-            int[] inventoryIds = HttpUtility.UrlDecode(inventories).Split(",").ToIntArray();
+            int[] propertyIds;
+            int[] inventoryIds;
+            InitializeParameters(properties, inventories, out propertyIds, out inventoryIds);
             var offerings = (from o in context.Offerings!.Include(o => o.InventoryItem).Include(o => o.InventoryItem.Inventory)
                              join om in context.OfferingManagers!
                                  on o.OfferingId equals om.Offering.OfferingId
@@ -49,11 +50,38 @@ namespace EntityEquity.Controllers
                                  && pm.Role == PropertyManagerRoles.Administrator
                                  && im.UserId == _userManager.GetUserId(User)
                                  && im.Role == InventoryManagerRoles.Administrator
-                                 && propertyIds.Contains(pom.Property!.PropertyId)
-                                 && inventoryIds.Contains(o.InventoryItem.Inventory.InventoryId)
-                             select new { Offering = o, Property = p }).ToList();
+                                 && (propertyIds.Contains(pom.Property!.PropertyId)
+                                        || propertyIds.Count() == 0)
+                                 && (inventoryIds.Contains(o.InventoryItem.Inventory.InventoryId)
+                                        || inventoryIds.Count() == 0)
+                             select new { Offering = o, Property = p,
+                                 Photos = (from omap in context.OfferingPhotoUrlMappings
+                                           join pu in context.PhotoUrls
+                                               on omap.PhotoUrl.PhotoUrlId equals pu.PhotoUrlId
+                                           where o.OfferingId == omap.Offering.OfferingId
+                                           select pu).ToList()
+                             }).ToList();
 
             return offerings;
+        }
+        private void InitializeParameters(string properties, string inventories, out int[] propertyIds, out int[] inventoryIds)
+        {
+            if (properties == "0")
+            {
+                propertyIds = new int[0];
+            }
+            else
+            {
+                propertyIds = HttpUtility.UrlDecode(properties).Split(",").ToIntArray();
+            }
+            if (inventories == "0")
+            {
+                inventoryIds = new int[0];
+            }
+            else
+            {
+                inventoryIds = HttpUtility.UrlDecode(inventories).Split(",").ToIntArray();
+            }
         }
     }
 }

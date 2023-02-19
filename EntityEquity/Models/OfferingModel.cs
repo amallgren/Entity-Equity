@@ -19,6 +19,7 @@ namespace EntityEquity.Models
         [Required]
         public string Name { get; set; }
         public string Description { get; set; }
+        public PhotoUrl PhotoUrl { get; set; }
         [Required]
         public string[] PropertyIdsStrings { get; set; }
         public int[] PropertyIds

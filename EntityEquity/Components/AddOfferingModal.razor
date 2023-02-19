@@ -6,6 +6,8 @@
 @using Microsoft.AspNetCore.SignalR
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Net
+@inject IConfiguration configuration
+@inject IHttpClientFactory httpClientFactory
 @inject IJSRuntime JS
 @inject IHubContext<EntityHub> HubContext
 @inject NavigationManager Navigation
@@ -38,6 +40,10 @@
                 <div class="row">
                     <label class="col-md-4">Description</label>
                     <textarea id="addOfferingName" class="col-md-8" type="text" @bind="model.Description" />
+                </div>
+                <div class="row">
+                    <label class="col-md-4">Picture</label>
+                    <InputFile class="col-md-8" id="addOfferingFileUpload" OnChange="UploadFile" />
                 </div>
                 <div class="row">
                     <label class="col-md-4">Properties</label>
@@ -115,6 +121,19 @@
             InventoryItems = await hubConnection.InvokeAsync<List<InventoryItem>>("GetInventoryItems", SelectedInventory);
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private async Task UploadFile(InputFileChangeEventArgs e)
+    {
+        MemoryStream ms = new();
+        await e.File.OpenReadStream().CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        var parts = e.File.Name.Split('.');
+        string extension = parts[parts.Length - 1];
+        HttpClient httpClient = httpClientFactory.CreateClient("DefaultHttpClient");
+        var response = await httpClient.PostAsync($"{configuration["ImageHostingRoot"]}api/image?extension=" + extension, new ByteArrayContent(bytes));
+        string guid = await response.Content.ReadAsStringAsync();
+        model.PhotoUrl = new PhotoUrl() { Url = $"{configuration["ImageHostingRoot"]}images/{guid.Trim('\"')}.{extension}" };
     }
 
     private async void ValidSubmit()
