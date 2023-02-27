@@ -33,7 +33,15 @@ namespace EntityEquity.Controllers
                                  join pom in dbContext.PropertyOfferingMappings!
                                     on o.OfferingId equals pom.Offering!.OfferingId
                                  where pom.Property!.PropertyId == propertyId
-                                 select new OfferingWithOrderItem { Offering = o, OrderItem = orit }).ToList();
+                                 select new OfferingWithOrderItem { 
+                                     Offering = o, 
+                                     OrderItem = orit, 
+                                     Photos = (from omap in dbContext.OfferingPhotoUrlMappings
+                                                join pu in dbContext.PhotoUrls
+                                                    on omap.PhotoUrl.PhotoUrlId equals pu.PhotoUrlId
+                                                where o.OfferingId == omap.Offering.OfferingId
+                                                select pu).ToList()
+                                 }).ToList();
                 return offerings;
             }
         }

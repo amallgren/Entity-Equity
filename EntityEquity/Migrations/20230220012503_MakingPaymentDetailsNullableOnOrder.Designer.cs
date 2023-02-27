@@ -4,6 +4,7 @@ using EntityEquity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EntityEquity.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230220012503_MakingPaymentDetailsNullableOnOrder")]
+    partial class MakingPaymentDetailsNullableOnOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -352,80 +354,6 @@ namespace EntityEquity.Migrations
                     b.HasIndex("PropertyId");
 
                     b.ToTable("OrderItems");
-                });
-
-            modelBuilder.Entity("EntityEquity.Data.PaymentTransaction", b =>
-                {
-                    b.Property<int>("PaymentTransactionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PaymentTransactionId"), 1L, 1);
-
-                    b.Property<string>("AuthorizationCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MessageCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("getutcdate()");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ResponseCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TransactionId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("PaymentTransactionId");
-
-                    b.HasIndex("OrderId");
-
-                    b.ToTable("PaymentTransactions");
-                });
-
-            modelBuilder.Entity("EntityEquity.Data.PaymentTransactionError", b =>
-                {
-                    b.Property<int>("PaymentTransactionErrorId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PaymentTransactionErrorId"), 1L, 1);
-
-                    b.Property<string>("ErrorCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ErrorMessage")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("getutcdate()");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int");
-
-                    b.HasKey("PaymentTransactionErrorId");
-
-                    b.HasIndex("OrderId");
-
-                    b.ToTable("PaymentTransactionErrors");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.PhotoUrl", b =>
@@ -859,28 +787,6 @@ namespace EntityEquity.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Property");
-                });
-
-            modelBuilder.Entity("EntityEquity.Data.PaymentTransaction", b =>
-                {
-                    b.HasOne("EntityEquity.Data.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("EntityEquity.Data.PaymentTransactionError", b =>
-                {
-                    b.HasOne("EntityEquity.Data.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("EntityEquity.Data.PropertyManager", b =>

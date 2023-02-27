@@ -1,0 +1,117 @@
+﻿@using AuthorizeNet.Api.Contracts.V1;
+@using EntityEquity.Common
+@using EntityEquity.Hubs
+@using EntityEquity.Models
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@inject CookieBridgeConnection CookieBridgeConnection
+<h3>Payment Form</h3>
+
+<EditForm Model="@model" OnValidSubmit="ValidSubmit">
+    <DataAnnotationsValidator />
+    
+    <div class="modal fade" id="paymentFormModal" tabindex="-1" aria-labelledby="paymentFormModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="paymentFormModalLabel">Process payment</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div style="text-align:center;font-size:1rem;">
+                Payment Information
+            </div>
+            <div class="row">
+                <label for="paymentInformationFirstNameText" class="col-md-4">First Name</label>
+                <input id="paymentInformationFirstNameText" class="col-md-8" @bind-value="model.BillingFirstName" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationLastNameText" class="col-md-4">Last Name</label>
+                <input id="paymentInformationLastNameText" class="col-md-8" @bind-value="model.BillingLastName" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationCardNumberText" class="col-md-4">Card Number</label>
+                <input id="paymentInformationCardNumberText" class="col-md-8" @bind-value="model.CreditCardNumber" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationExpirationDateText" class="col-md-4">Expiration Date</label>
+                <input id="paymentInformationExpirationDateText" maxlength="4" class="col-md-8" @bind-value="model.CreditCardExpirationDate" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationSecurityCodeText" class="col-md-4">Security Code</label>
+                <input id="paymentInformationSecurityCodeText" class="col-md-8" @bind-value="model.CreditCardSecurityCode" />
+            </div>
+            <div style="text-align:center;font-size:1rem;">
+                Billing Address
+            </div>
+            <div class="row">
+                <label for="paymentInformationBillingAddressLine1Text" class="col-md-4">Address</label>
+                <input id="paymentInformationBillingAddressLine1Text" class="col-md-8" @bind-value="model.BillingAddress" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationBillingCityText" class="col-md-4">City</label>
+                <input id="paymentInformationBillingCityText" class="col-md-8" @bind-value="model.BillingCity" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationBillingZipCodeText" class="col-md-4">ZIP Code</label>
+                <input id="paymentInformationBillingZipCodeText" class="col-md-8" @bind-value="model.BillingZipCode" />
+            </div>
+            </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public string? Cookie { get; set; }
+    private HubConnection? hubConnection;
+    public PaymentFormModel model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
+        await hubConnection.StartAsync();
+    }
+
+    public async void ValidSubmit()
+    {
+        List<lineItemType> lineItems = new();
+
+        if (hubConnection is not null)
+        {
+            lineItems = await hubConnection.InvokeAsync<List<lineItemType>>("GetLineItems");
+        }
+        var total = lineItems.Sum<lineItemType>(i => (i.unitPrice * i.quantity));
+        var creditCard = new creditCardType
+            {
+                cardNumber = model.CreditCardNumber,
+                expirationDate = model.CreditCardExpirationDate,
+                cardCode = model.CreditCardSecurityCode
+            };
+        var billingAddress = new customerAddressType
+            {
+                firstName = model.BillingFirstName,
+                lastName = model.BillingLastName,
+                address = model.BillingAddress,
+                city = model.BillingCity,
+                zip = model.BillingZipCode
+            };
+        CreditCardRunParameters ccParameters = new()
+            {
+                CreditCard = creditCard,
+                BillingAddress = billingAddress,
+                LineItems = lineItems,
+                Amount = total
+            };
+        if (hubConnection is not null)
+        {
+            await hubConnection.InvokeAsync("FinalizeOrder", ccParameters);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}

@@ -13,10 +13,10 @@
 @inject CookieBridgeConnection CookieBridgeConnection
 @inject IHttpClientFactory HttpClientFactory
 @implements IAsyncDisposable
-<div style="display:flex;">
-    <div style="width:325px;border: solid 2px black; padding:0px 15px 15px 15px; border-radius: 10px;">
+<div style="display:flex; flex-wrap:wrap;">
+    <div style="width:275px; min-width:275px; border: solid 2px black; padding:0px 10px 10px 10px; border-radius: 10px;">
         <h2 class="panel-section-title">Filters</h2>
-        <div style="display:grid; grid-template-columns: 2fr 5fr; row-gap: 10px">
+        <div style="display:grid; grid-template-columns: 75px 5fr; row-gap: 10px">
             <label>Properties</label>
             <select multiple @onchange="OnChangeProperties">
                 @foreach (var property in Properties)
@@ -37,7 +37,7 @@
             <button type="button" data-bs-toggle="modal" data-bs-target="#addOfferingModal">Add Offering</button>
         </div>
     </div>
-    <div style="display:flex;margin-left: 15px">
+    <div style="display:flex;flex-wrap:wrap;margin-left: 15px">
         @if (OfferingsWithProperties is not null)
         {
             foreach(var offeringsWithProperties in OfferingsWithProperties)

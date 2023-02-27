@@ -23,6 +23,7 @@ namespace EntityEquity.Common
             {
                 options.Cookies = _cookieBridge.CookieContainer;
             })
+            .AddNewtonsoftJsonProtocol()
             .Build();
         }
         public HttpClient GetHttpClient(string cookie)

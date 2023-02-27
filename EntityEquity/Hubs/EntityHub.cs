@@ -1,4 +1,8 @@
-﻿using EntityEquity.Data;
+﻿using AuthorizeNet.Api.Controllers;
+using AuthorizeNet.Api.Contracts.V1;
+using AuthorizeNet.Api.Controllers.Bases;
+using EntityEquity.Common;
+using EntityEquity.Data;
 using EntityEquity.Data.CommonDataSets;
 using EntityEquity.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -12,10 +16,14 @@ namespace EntityEquity.Hubs
     {
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private UserManager<IdentityUser> _userManager;
-        public EntityHub(IDbContextFactory<ApplicationDbContext> dbContextFactor, UserManager<IdentityUser> userManager)
+        private IConfiguration _configuration;
+        public EntityHub(IDbContextFactory<ApplicationDbContext> dbContextFactor, 
+            UserManager<IdentityUser> userManager, 
+            IConfiguration configuration)
         {
             _dbContextFactory = dbContextFactor;
             _userManager = userManager;
+            _configuration = configuration;
         }
         [Authorize]
         public async Task AddProperty(PropertyModel model)
@@ -267,34 +275,97 @@ namespace EntityEquity.Hubs
             }
         }
         [Authorize]
-        public async Task FinalizeOrder()
+        public async Task<int> GetIncompleteOrderNumber()
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
-                var ordersAndProperties = (from o in dbContext.Orders
-                                  join oi in dbContext.OrderItems!
-                                   on o.OrderId equals oi.Order!.OrderId
-                                  where o.UserId == _userManager.GetUserId(Context.User)
-                                   && o.State == OrderState.Incomplete
-                                  select new { Order = o, Property = oi.Property }).Distinct().ToList();
-                foreach (var op in ordersAndProperties)
+                var orderId = await (from o in dbContext.Orders
+                                   where o.UserId == _userManager.GetUserId(Context.User)
+                                        && o.State == OrderState.Incomplete
+                                   select o.OrderId).FirstOrDefaultAsync();
+                return orderId;
+            }
+        }
+        [Authorize]
+        public async Task<List<lineItemType>> GetLineItems()
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var listItems = await (from oi in dbContext.OrderItems.Include(i => i.Offering)
+                                      join o in dbContext.Orders
+                                           on oi.Order.OrderId equals o.OrderId
+                                      where o.UserId == _userManager.GetUserId(Context.User)
+                                           && o.State == OrderState.Incomplete
+                                      select oi).ToListAsync();
+
+                List<lineItemType> returnList = new();
+
+                foreach (var listItem in listItems)
                 {
-                    Invoice invoice = new() { Order = op.Order, Property = op.Property, UserId = _userManager.GetUserId(Context.User), ProcessedAt = DateTime.Now };
-                    var items = from oi in dbContext.OrderItems.Include(oi => oi.Offering).Include(oi => oi.Offering.InventoryItem)
-                                where oi.Order.OrderId == op.Order.OrderId
-                                    && oi.Property.PropertyId == op.Property.PropertyId
-                                select oi;
-                    dbContext.Invoices!.Add(invoice);
-                    await dbContext.SaveChangesAsync();
-                    foreach (var item in items)
+                    lineItemType newItem = new() {
+                        itemId = listItem.Offering.OfferingId.ToString(),
+                        name = listItem.Offering.Name,
+                        quantity = listItem.Quantity,
+                        unitPrice = listItem.Offering.Price
+                    };
+                    returnList.Add(newItem);
+                }
+
+                return returnList;
+            }
+        }
+        [Authorize]
+        public async Task FinalizeOrder(CreditCardRunParameters parameters)
+        {
+            CreditCardCharge charge = new CreditCardCharge(_configuration, _dbContextFactory, _userManager, Context.User);
+            createTransactionResponse response = charge.Run(parameters);
+            if (response is not null)
+            {
+                if (response.messages.resultCode == messageTypeEnum.Ok)
+                {
+                    if (response.transactionResponse.messages is not null)
                     {
-                        InvoiceItem invoiceItem = new InvoiceItem() { Invoice = invoice, Name = item.Offering.Name, Cost = item.Offering.InventoryItem.Cost, Price = item.Offering.Price, Quantity = item.Quantity };
-                        dbContext.InvoiceItems!.Add(invoiceItem);
+                        using (var dbContext = _dbContextFactory.CreateDbContext())
+                        {
+                            var order = await (from o in dbContext.Orders
+                                               where o.UserId == _userManager.GetUserId(Context.User)
+                                                      && o.State == OrderState.Incomplete
+                                               select o).FirstOrDefaultAsync();
+
+                            if (order is not null)
+                            {
+                                await dbContext.SaveChangesAsync();
+                            }
+
+                            var ordersAndProperties = (from o in dbContext.Orders
+                                                       join oi in dbContext.OrderItems!
+                                                        on o.OrderId equals oi.Order!.OrderId
+                                                       where o.UserId == _userManager.GetUserId(Context.User)
+                                                        && o.State == OrderState.Incomplete
+                                                       select new { Order = o, Property = oi.Property }).Distinct().ToList();
+                            foreach (var op in ordersAndProperties)
+                            {
+                                Invoice invoice = new() { Order = op.Order, Property = op.Property, UserId = _userManager.GetUserId(Context.User), ProcessedAt = DateTime.Now };
+                                var items = from oi in dbContext.OrderItems.Include(oi => oi.Offering).Include(oi => oi.Offering.InventoryItem)
+                                            where oi.Order.OrderId == op.Order.OrderId
+                                                && oi.Property.PropertyId == op.Property.PropertyId
+                                            select oi;
+                                dbContext.Invoices!.Add(invoice);
+                                await dbContext.SaveChangesAsync();
+                                foreach (var item in items)
+                                {
+                                    InvoiceItem invoiceItem = new InvoiceItem() { Invoice = invoice, Name = item.Offering.Name, Cost = item.Offering.InventoryItem.Cost, Price = item.Offering.Price, Quantity = item.Quantity };
+                                    dbContext.InvoiceItems!.Add(invoiceItem);
+                                }
+                                op.Order.State = OrderState.Complete;
+                                await dbContext.SaveChangesAsync();
+                            }
+                        }
                     }
-                    op.Order.State = OrderState.Complete;
-                    await dbContext.SaveChangesAsync();
                 }
             }
+
+            await Clients.Caller.SendAsync("OnFinalizedOrder");
         }
         [Authorize]
         public async Task AddEquityOffer(PrepEquityModel model)

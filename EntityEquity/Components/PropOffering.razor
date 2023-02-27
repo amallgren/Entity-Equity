@@ -6,6 +6,15 @@
 @inject CookieBridgeConnection CookieBridgeConnection
 @inject IHubContext<EntityHub> HubContext
 <div class="prop-offering">
+
+    @if (Offering.Photos is not null && Offering.Photos.Count() > 0)
+    {
+        <img class="prop-item-image" src="@Offering.Photos.FirstOrDefault().Url" />
+    }
+    else
+    {
+        <div class="no-image">No Image</div>
+    }
     <div>@Offering.Offering.Name</div>
     <div>@Offering.Offering.Description</div>
     <div>$@Offering.Offering.Price</div>

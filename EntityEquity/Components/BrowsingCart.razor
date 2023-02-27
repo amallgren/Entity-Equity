@@ -1,13 +1,15 @@
 ﻿@using EntityEquity.Common
 @using EntityEquity.Components
 @using EntityEquity.Data
+@using EntityEquity.Hubs
 @using Microsoft.AspNetCore.SignalR
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json
 @inject CookieBridgeConnection CookieBridgeConnection
+@inject IHubContext<EntityHub> HubContext
 @inject IHttpClientFactory HttpClientFactory
+@inject IJSRuntime JS
 <h3>Cart</h3>
-
 @if (Items is not null)
 {
     Total = 0;
@@ -18,9 +20,11 @@
     }
 }
 <div style="display:flex;justify-content: space-between; margin-top:15px; font-weight:bold;">
-<span>Total</span><span style="text-align:right">$@Total</span>
+<span>Total</span><span>$<span id="totalAmount" style="text-align:right">@Total</span></span>
 </div>
-<button type="button" style="width:100%; margin-top:10px;" @onclick="OnPayButtonClick">Pay</button>
+<div style="margin-top:15px;" id="paypal-button-container"></div>
+<button type="button" style="width:100%; margin-top:10px;" data-bs-toggle="modal" data-bs-target="#paymentFormModal">Pay</button>
+<PaymentFormModal Cookie="@Cookie"></PaymentFormModal>
 @code {
     [Parameter]
     public string Cookie { get; set; }
@@ -29,24 +33,32 @@
     private decimal Total { get; set; }
     private HubConnection? hubConnection;
 
-    public void OnPayButtonClick()
-    {
-        hubConnection.SendAsync("FinalizeOrder");
-    }
-
     protected override async Task OnInitializedAsync()
     {
         hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
-        
+
         hubConnection.On("UpdateOrders", async () =>
         {
             await RefreshCart();
+        });
+
+        hubConnection.On("OnFinalizedOrder", async () =>
+        {
+            await HubContext.Clients.All.SendAsync("UpdateOrders");
         });
 
         await hubConnection.StartAsync();
 
         await RefreshCart();
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && hubConnection is not null) {
+            var orderId = await hubConnection.InvokeAsync<int>("GetIncompleteOrderNumber");
+        }
+    }
+
     private async Task RefreshCart()
     {
         HttpClient httpClient = CookieBridgeConnection.GetHttpClient(Cookie!);

@@ -27,6 +27,8 @@ namespace EntityEquity.Data
         public DbSet<EquityTransaction>? EquityTransactions { get; set; }
         public DbSet<PhotoUrl>? PhotoUrls { get; set; }
         public DbSet<OfferingPhotoUrlMapping>? OfferingPhotoUrlMappings { get; set; }
+        public DbSet<PaymentTransaction>? PaymentTransactions { get; set; }
+        public DbSet<PaymentTransactionError>? PaymentTransactionErrors { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -44,6 +46,16 @@ namespace EntityEquity.Data
                         .OnDelete(DeleteBehavior.NoAction);
 
                 et.Navigation("Property");
+            });
+
+            modelBuilder.Entity<PaymentTransaction>(pt =>
+            {
+                pt.Property(ptp => ptp.OccurredAt).HasDefaultValueSql("getutcdate()");
+            });
+
+            modelBuilder.Entity<PaymentTransactionError>(pte =>
+            {
+                pte.Property(ptep => ptep.OccurredAt).HasDefaultValueSql("getutcdate()");
             });
 
             base.OnModelCreating(modelBuilder);
@@ -199,6 +211,7 @@ namespace EntityEquity.Data
         public int OrderId { get; set; }
         public string? UserId { get; set; }
         public OrderState State { get; set; }
+        public string? PaymentDetails { get; set; }
     }
     public enum OrderState { Incomplete, Complete }
     public class OrderItem
@@ -213,6 +226,7 @@ namespace EntityEquity.Data
     {
         public Offering? Offering { get; set; }
         public OrderItem? OrderItem { get; set; }
+        public List<PhotoUrl>? Photos { get; set; }
     }
     public class OfferingWithProperty
     {
@@ -264,5 +278,24 @@ namespace EntityEquity.Data
         public int Shares { get; set; }
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
+    }
+    public class PaymentTransaction
+    {
+        public int PaymentTransactionId { get; set; }
+        public Order Order { get; set; }
+        public string TransactionId { get; set; }
+        public string ResponseCode { get; set; }
+        public string MessageCode { get; set; }
+        public string Description { get; set; }
+        public string AuthorizationCode { get; set; }
+        public DateTime OccurredAt { get; set; }
+    }
+    public class PaymentTransactionError
+    {
+        public int PaymentTransactionErrorId { get; set; }
+        public Order Order { get; set; }
+        public string ErrorCode { get; set; }
+        public string ErrorMessage { get; set; }
+        public DateTime OccurredAt { get; set; }
     }
 }
