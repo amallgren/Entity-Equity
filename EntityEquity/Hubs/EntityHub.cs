@@ -468,16 +468,23 @@ namespace EntityEquity.Hubs
         [Authorize]
         public async Task SaveShippingAddress(Order order, ShippingAddress newAddress)
         {
-            using (var dbContext = _dbContextFactory.CreateDbContext())
+            try
             {
-                newAddress.UserId = _userManager.GetUserId(Context.User);
-                dbContext.ShippingAddresses.Add(newAddress);
-                await dbContext.SaveChangesAsync();
+                using (var dbContext = _dbContextFactory.CreateDbContext())
+                {
+                    newAddress.UserId = _userManager.GetUserId(Context.User);
+                    dbContext.ShippingAddresses.Add(newAddress);
+                    await dbContext.SaveChangesAsync();
 
-                order.ShippingAddress = newAddress;
-                dbContext.Orders.Attach(order);
+                    order.ShippingAddress = newAddress;
+                    dbContext.Orders.Attach(order);
 
-                await dbContext.SaveChangesAsync();
+                    await dbContext.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                string breakpoint = "";
             }
         }
     }

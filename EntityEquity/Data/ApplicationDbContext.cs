@@ -316,6 +316,7 @@ namespace EntityEquity.Data
     {
         public int ShippingAddressId { get; set; }
         public string UserId { get; set; }
+        public bool SameAsBillingAddress { get; set; }
         public string Name { get; set; }
         public string StreetAddress { get; set; }
         public string City { get; set; }

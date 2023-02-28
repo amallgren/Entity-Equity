@@ -27,6 +27,7 @@ body {
 
 .prop-offering {
     margin:10px;
+    max-width: 250px;
 }
 .prop-offering input {
     text-align: center;

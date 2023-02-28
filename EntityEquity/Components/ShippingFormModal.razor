@@ -16,29 +16,36 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="row">
+                        <Microsoft.AspNetCore.Components.Forms.ValidationSummary />
+                    </div>
                     <div style="text-align:center;font-size:1rem;">
                         Shipping Address
                     </div>
                     <div class="row">
                         <label for="shippingSameAsBillingCheck" class="col-md-4">Same As Billing</label>
-                        <input id="shippingSameAsBillingCheck" type="checkbox" class="col-md-8" />
+                        <input id="shippingSameAsBillingCheck" type="checkbox" class="col-md-8" @bind-value="model.SameAsBillingAddress" />
                     </div>
                     <div class="row">
                         <label for="shippingNameText" class="col-md-4">Name</label>
-                        <input id="shippingNameText" class="col-md-8" />
+                        <input id="shippingNameText" class="col-md-8" @bind-value="model.Name" />
                     </div>
                     <div class="row">
                         <label for="shippingStreetAddressText" class="col-md-4">Street Address</label>
-                        <input id="shippingStreetAddressText" class="col-md-8" />
+                        <input id="shippingStreetAddressText" class="col-md-8" @bind-value="model.StreetAddress" />
                     </div>
                     <div class="row">
                         <label for="shippingCityText" class="col-md-4">City</label>
-                        <input id="shippingCityText" class="col-md-8" />
+                        <input id="shippingCityText" class="col-md-8" @bind-value="model.City" />
                     </div>
                     <div class="row">
                         <label for="shippingZipCodeText" class="col-md-4">ZIP Code</label>
-                        <input id="shippingZipCodeText" class="col-md-8" />
+                        <input id="shippingZipCodeText" class="col-md-8" @bind-value="model.ZipCode" />
                     </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
                 </div>
             </div>
         </div>
@@ -60,6 +67,7 @@
     {
         ShippingAddress address = new()
         {
+            SameAsBillingAddress = model.SameAsBillingAddress,
             Name = model.Name,
             StreetAddress = model.StreetAddress,
             City = model.City,
