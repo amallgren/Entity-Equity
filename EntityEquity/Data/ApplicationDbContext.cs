@@ -29,6 +29,8 @@ namespace EntityEquity.Data
         public DbSet<OfferingPhotoUrlMapping>? OfferingPhotoUrlMappings { get; set; }
         public DbSet<PaymentTransaction>? PaymentTransactions { get; set; }
         public DbSet<PaymentTransactionError>? PaymentTransactionErrors { get; set; }
+        public DbSet<BillingAddress>? BillingAddresses { get; set; }
+        public DbSet<ShippingAddress>? ShippingAddresses { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -107,6 +109,7 @@ namespace EntityEquity.Data
         public string Description { get; set; }
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
+        public bool MustShip { get; set; }
     }
     [Serializable]
     public class OfferingManager
@@ -211,7 +214,8 @@ namespace EntityEquity.Data
         public int OrderId { get; set; }
         public string? UserId { get; set; }
         public OrderState State { get; set; }
-        public string? PaymentDetails { get; set; }
+        public BillingAddress? BillingAddress { get; set; }
+        public ShippingAddress? ShippingAddress { get; set; }
     }
     public enum OrderState { Incomplete, Complete }
     public class OrderItem
@@ -297,5 +301,24 @@ namespace EntityEquity.Data
         public string ErrorCode { get; set; }
         public string ErrorMessage { get; set; }
         public DateTime OccurredAt { get; set; }
+    }
+    public class BillingAddress
+    {
+        public int BillingAddressId { get; set; }
+        public string UserId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string StreetAddress { get; set; }
+        public string City { get; set; }
+        public string ZipCode { get; set; }
+    }
+    public class ShippingAddress
+    {
+        public int ShippingAddressId { get; set; }
+        public string UserId { get; set; }
+        public string Name { get; set; }
+        public string StreetAddress { get; set; }
+        public string City { get; set; }
+        public string ZipCode { get; set; }
     }
 }

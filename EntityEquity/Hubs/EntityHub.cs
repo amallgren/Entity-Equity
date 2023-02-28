@@ -188,6 +188,7 @@ namespace EntityEquity.Hubs
                             offering.Description = model.Description;
                             offering.InventoryItem = item;
                             offering.Price = model.Price;
+                            offering.MustShip = model.MustShip;
 
                             context.Offerings!.Add(offering);
                             await context.SaveChangesAsync();
@@ -315,57 +316,88 @@ namespace EntityEquity.Hubs
             }
         }
         [Authorize]
-        public async Task FinalizeOrder(CreditCardRunParameters parameters)
+        public async Task<FinalizeOrderReturnModel> FinalizeOrder(CreditCardRunParameters parameters)
         {
             CreditCardCharge charge = new CreditCardCharge(_configuration, _dbContextFactory, _userManager, Context.User);
-            createTransactionResponse response = charge.Run(parameters);
-            if (response is not null)
+            var result = await charge.Run(parameters);
+            FinalizeOrderReturnModel returnObject = null;
+            if (result.Successful)
             {
-                if (response.messages.resultCode == messageTypeEnum.Ok)
+                using (var dbContext = _dbContextFactory.CreateDbContext())
                 {
-                    if (response.transactionResponse.messages is not null)
+                    var order = await (from o in dbContext.Orders
+                                       where o.UserId == _userManager.GetUserId(Context.User)
+                                              && o.State == OrderState.Incomplete
+                                       select o).FirstOrDefaultAsync();
+
+                    var billingAddress = await SaveBillingAddress(parameters);
+                    order.BillingAddress = billingAddress;
+                    await dbContext.SaveChangesAsync();
+
+                    await GenerateInvoices();
+
+                    var mustShip = (from oi in dbContext.OrderItems.Include(i => i.Offering)
+                                    where oi.Order.OrderId == order.OrderId
+                                        && oi.Offering.MustShip
+                                    select oi).Any();
+
+                    returnObject = new()
                     {
-                        using (var dbContext = _dbContextFactory.CreateDbContext())
-                        {
-                            var order = await (from o in dbContext.Orders
-                                               where o.UserId == _userManager.GetUserId(Context.User)
-                                                      && o.State == OrderState.Incomplete
-                                               select o).FirstOrDefaultAsync();
-
-                            if (order is not null)
-                            {
-                                await dbContext.SaveChangesAsync();
-                            }
-
-                            var ordersAndProperties = (from o in dbContext.Orders
-                                                       join oi in dbContext.OrderItems!
-                                                        on o.OrderId equals oi.Order!.OrderId
-                                                       where o.UserId == _userManager.GetUserId(Context.User)
-                                                        && o.State == OrderState.Incomplete
-                                                       select new { Order = o, Property = oi.Property }).Distinct().ToList();
-                            foreach (var op in ordersAndProperties)
-                            {
-                                Invoice invoice = new() { Order = op.Order, Property = op.Property, UserId = _userManager.GetUserId(Context.User), ProcessedAt = DateTime.Now };
-                                var items = from oi in dbContext.OrderItems.Include(oi => oi.Offering).Include(oi => oi.Offering.InventoryItem)
-                                            where oi.Order.OrderId == op.Order.OrderId
-                                                && oi.Property.PropertyId == op.Property.PropertyId
-                                            select oi;
-                                dbContext.Invoices!.Add(invoice);
-                                await dbContext.SaveChangesAsync();
-                                foreach (var item in items)
-                                {
-                                    InvoiceItem invoiceItem = new InvoiceItem() { Invoice = invoice, Name = item.Offering.Name, Cost = item.Offering.InventoryItem.Cost, Price = item.Offering.Price, Quantity = item.Quantity };
-                                    dbContext.InvoiceItems!.Add(invoiceItem);
-                                }
-                                op.Order.State = OrderState.Complete;
-                                await dbContext.SaveChangesAsync();
-                            }
-                        }
-                    }
+                        Order = order,
+                        Result = result,
+                        MustShip = mustShip
+                    };
                 }
             }
-
             await Clients.Caller.SendAsync("OnFinalizedOrder");
+            return returnObject;
+        }
+        private async Task GenerateInvoices()
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var ordersAndProperties = (from o in dbContext.Orders
+                                           join oi in dbContext.OrderItems!
+                                            on o.OrderId equals oi.Order!.OrderId
+                                           where o.UserId == _userManager.GetUserId(Context.User)
+                                            && o.State == OrderState.Incomplete
+                                           select new { Order = o, Property = oi.Property }).Distinct().ToList();
+                foreach (var op in ordersAndProperties)
+                {
+                    Invoice invoice = new() { Order = op.Order, Property = op.Property, UserId = _userManager.GetUserId(Context.User), ProcessedAt = DateTime.Now };
+                    var items = from oi in dbContext.OrderItems.Include(oi => oi.Offering).Include(oi => oi.Offering.InventoryItem)
+                                where oi.Order.OrderId == op.Order.OrderId
+                                    && oi.Property.PropertyId == op.Property.PropertyId
+                                select oi;
+                    dbContext.Invoices!.Add(invoice);
+                    await dbContext.SaveChangesAsync();
+                    foreach (var item in items)
+                    {
+                        InvoiceItem invoiceItem = new InvoiceItem() { Invoice = invoice, Name = item.Offering.Name, Cost = item.Offering.InventoryItem.Cost, Price = item.Offering.Price, Quantity = item.Quantity };
+                        dbContext.InvoiceItems!.Add(invoiceItem);
+                    }
+                    op.Order.State = OrderState.Complete;
+                    await dbContext.SaveChangesAsync();
+                }
+            }
+        }
+        private async Task<BillingAddress> SaveBillingAddress(CreditCardRunParameters parameters)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var newAddress = new BillingAddress()
+                {
+                    UserId = _userManager.GetUserId(Context.User),
+                    FirstName = parameters.BillingAddress.firstName,
+                    LastName = parameters.BillingAddress.lastName,
+                    StreetAddress = parameters.BillingAddress.address,
+                    City = parameters.BillingAddress.city,
+                    ZipCode = parameters.BillingAddress.zip
+                };
+                dbContext.BillingAddresses.Add(newAddress);
+                await dbContext.SaveChangesAsync();
+                return newAddress;
+            }
         }
         [Authorize]
         public async Task AddEquityOffer(PrepEquityModel model)
@@ -432,6 +464,21 @@ namespace EntityEquity.Hubs
                 await dbContext.SaveChangesAsync();
             }
             
+        }
+        [Authorize]
+        public async Task SaveShippingAddress(Order order, ShippingAddress newAddress)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                newAddress.UserId = _userManager.GetUserId(Context.User);
+                dbContext.ShippingAddresses.Add(newAddress);
+                await dbContext.SaveChangesAsync();
+
+                order.ShippingAddress = newAddress;
+                dbContext.Orders.Attach(order);
+
+                await dbContext.SaveChangesAsync();
+            }
         }
     }
 }

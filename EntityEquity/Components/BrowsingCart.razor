@@ -28,7 +28,6 @@
 @code {
     [Parameter]
     public string Cookie { get; set; }
-
     private List<OfferingWithOrderItem> Items { get; set; }
     private decimal Total { get; set; }
     private HubConnection? hubConnection;
@@ -42,8 +41,9 @@
             await RefreshCart();
         });
 
-        hubConnection.On("OnFinalizedOrder", async () =>
+        hubConnection.On("OnFinalizedOrder", async (Order order) =>
         {
+            await JS.InvokeVoidAsync("HideModal", new object[1] { "#paymentFormModal" });
             await HubContext.Clients.All.SendAsync("UpdateOrders");
         });
 

@@ -29,64 +29,90 @@ namespace EntityEquity.Common
             _userManager = userManager;
             _user = user;
         }
-        public createTransactionResponse Run(CreditCardRunParameters parameters)
+        public async Task<CreditCardResult> Run(CreditCardRunParameters parameters)
         {
-            IConfigurationSection authorizeNetConfig = _configuration.GetSection("AuthorizeNet");
-            var apiLoginId = authorizeNetConfig.GetValue<string>("ApiLoginId");
-            var apiTransactionKey = authorizeNetConfig.GetValue<string>("ApiTransactionKey");
-            ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = AuthorizeNet.Environment.SANDBOX;
-
-            // define the merchant information (authentication / transaction id)
-            ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+            try
             {
-                name = apiLoginId,
-                ItemElementName = ItemChoiceType.transactionKey,
-                Item = apiTransactionKey
-            };
+                IConfigurationSection authorizeNetConfig = _configuration.GetSection("AuthorizeNet");
+                var apiLoginId = authorizeNetConfig.GetValue<string>("ApiLoginId");
+                var apiTransactionKey = authorizeNetConfig.GetValue<string>("ApiTransactionKey");
+                ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = AuthorizeNet.Environment.SANDBOX;
 
-            var creditCard = parameters.CreditCard;
-            var billingAddress = parameters.BillingAddress;
-            var paymentType = new paymentType { Item = creditCard };
-            var lineItems = parameters.LineItems.ToArray();
-            var transactionRequest = new transactionRequestType
-            {
-                transactionType = transactionTypeEnum.authCaptureTransaction.ToString(),
-                amount = parameters.Amount,
-                payment = paymentType,
-                billTo = billingAddress,
-                lineItems = lineItems
-            };
+                // define the merchant information (authentication / transaction id)
+                ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+                {
+                    name = apiLoginId,
+                    ItemElementName = ItemChoiceType.transactionKey,
+                    Item = apiTransactionKey
+                };
 
-            var request = new createTransactionRequest { transactionRequest = transactionRequest };
-            var controller = new createTransactionController(request);
-            controller.Execute();
+                var creditCard = parameters.CreditCard;
+                var billingAddress = parameters.BillingAddress;
+                var paymentType = new paymentType { Item = creditCard };
+                var lineItems = parameters.LineItems.ToArray();
+                var transactionRequest = new transactionRequestType
+                {
+                    transactionType = transactionTypeEnum.authCaptureTransaction.ToString(),
+                    amount = parameters.Amount,
+                    payment = paymentType,
+                    billTo = billingAddress,
+                    lineItems = lineItems
+                };
 
-            var response = controller.GetApiResponse();
+                var request = new createTransactionRequest { transactionRequest = transactionRequest };
+                var controller = new createTransactionController(request);
+                controller.Execute();
 
-            if (response is not null)
-            {
-                ProcessResponse(response);
+                var response = controller.GetApiResponse();
+
+                Data.CommonDataSets.Orders orderDataSet = new(_dbContextFactory, _userManager, _user);
+                var order = orderDataSet.GetIncompleteOrder();
+
+                var result = await ProcessResponse(response, order);
+
+                if (response is null)
+                {
+                    
+                    var errorResponse = controller.GetErrorResponse();
+                    PaymentTransactionError error = new PaymentTransactionError()
+                    {
+                        Order = order,
+                        ErrorCode = errorResponse.messages.resultCode.ToString(),
+                        ErrorMessage = errorResponse.messages.message.ToString()
+                    };
+                    LogPaymentTransactionError(error);
+                    result.Error = error;
+                }
+                return result;
             }
-            else
+            catch (Exception ex)
             {
-                var errorResponse = controller.GetErrorResponse();
                 string breakpoint = "";
             }
-            
-
-            return response;
+            return null;
         }
-        private async Task ProcessResponse(createTransactionResponse response)
+        private async Task LogPaymentTransactionError(PaymentTransactionError error)
         {
-            Data.CommonDataSets.Orders orderDataSet = new(_dbContextFactory, _userManager, _user);
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                dbContext.Orders.Attach(error.Order);
+                dbContext.PaymentTransactionErrors.Add(error);
+                await dbContext.SaveChangesAsync();
+            }
+        }
+        private async Task<CreditCardResult> ProcessResponse(createTransactionResponse response, Order order)
+        {
+            CreditCardResult result = new();
+            result.Successful = false;
             PaymentTransactionError error = new PaymentTransactionError()
             {
-                Order = orderDataSet.GetIncompleteOrder(),
+                Order = order,
                 ErrorCode = "Unknown",
                 ErrorMessage = "Transaction failed."
             };
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
+                dbContext.Orders.Attach(error.Order);
                 if (response is not null)
                 {
                     if (response.messages.resultCode == messageTypeEnum.Ok)
@@ -95,14 +121,16 @@ namespace EntityEquity.Common
                         {
                             PaymentTransaction paymentTransaction = new PaymentTransaction()
                             {
-                                Order = orderDataSet.GetIncompleteOrder(),
+                                Order = order,
                                 TransactionId = response.transactionResponse.transId,
                                 ResponseCode = response.transactionResponse.responseCode,
                                 MessageCode = response.transactionResponse.messages[0].code,
                                 Description = response.transactionResponse.messages[0].description,
                                 AuthorizationCode = response.transactionResponse.authCode
                             };
+                            dbContext.Orders.Attach(paymentTransaction.Order);
                             dbContext.PaymentTransactions!.Add(paymentTransaction);
+                            result.Successful = true;
                         }
                         else
                         {
@@ -138,7 +166,11 @@ namespace EntityEquity.Common
                 }
                 await dbContext.SaveChangesAsync();
             }
+            if (!result.Successful)
+                result.Error = error;
+            return result;
         }
+
     }
     public class CreditCardRunParameters
     {
@@ -146,5 +178,10 @@ namespace EntityEquity.Common
         public customerAddressType BillingAddress { get; set; }
         public List<lineItemType> LineItems { get; set; }
         public decimal Amount { get; set; }
+    }
+    public class CreditCardResult
+    {
+        public bool Successful { get; set; }
+        public PaymentTransactionError? Error { get; set; }
     }
 }

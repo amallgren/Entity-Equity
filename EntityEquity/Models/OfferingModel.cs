@@ -38,6 +38,7 @@ namespace EntityEquity.Models
             }
         }
         public decimal Price { get; set; }
+        public bool MustShip { get; set; }
         public List<OfferingManager> OfferingManagers { get; set; }
     }
 }

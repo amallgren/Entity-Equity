@@ -1,12 +1,12 @@
 ﻿@using AuthorizeNet.Api.Contracts.V1;
 @using EntityEquity.Common
+@using EntityEquity.Data
 @using EntityEquity.Hubs
 @using EntityEquity.Models
 @using Microsoft.AspNetCore.SignalR
 @using Microsoft.AspNetCore.SignalR.Client
 @inject CookieBridgeConnection CookieBridgeConnection
-<h3>Payment Form</h3>
-
+@inject IJSRuntime JS
 <EditForm Model="@model" OnValidSubmit="ValidSubmit">
     <DataAnnotationsValidator />
     
@@ -20,6 +20,9 @@
           <div class="modal-body">
             <div style="text-align:center;font-size:1rem;">
                 Payment Information
+            </div>
+            <div>
+                <span style="color:red;">@errorMessage</span>
             </div>
             <div class="row">
                 <label for="paymentInformationFirstNameText" class="col-md-4">First Name</label>
@@ -65,13 +68,15 @@
       </div>
     </div>
 </EditForm>
+<ShippingFormModal Cookie="@Cookie" Order="@order"></ShippingFormModal>
 
 @code {
     [Parameter]
     public string? Cookie { get; set; }
     private HubConnection? hubConnection;
     public PaymentFormModel model = new();
-
+    private string errorMessage = "";
+    private Order? order = null;  
     protected override async Task OnInitializedAsync()
     {
         hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
@@ -110,7 +115,21 @@
             };
         if (hubConnection is not null)
         {
-            await hubConnection.InvokeAsync("FinalizeOrder", ccParameters);
+            var finalizeOrderResult = await hubConnection.InvokeAsync<FinalizeOrderReturnModel>("FinalizeOrder", ccParameters);
+            if (!finalizeOrderResult.Result.Successful)
+            {
+                errorMessage = finalizeOrderResult.Result.Error.ErrorCode + finalizeOrderResult.Result.Error.ErrorMessage;
+            }
+            else if (finalizeOrderResult.PaidMustShip)
+            {
+                await JS.InvokeVoidAsync("HideModal", "#paymentFormModal");
+                await JS.InvokeVoidAsync("ShowModal", "#shippingFormModal");
+            }
+            else if (finalizeOrderResult.Result.Successful)
+            {
+                await JS.InvokeVoidAsync("HideModal", "#paymentFormModal");
+            }
+            order = finalizeOrderResult.Order;
             await InvokeAsync(StateHasChanged);
         }
     }
