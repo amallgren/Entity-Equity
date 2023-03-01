@@ -31,6 +31,7 @@ namespace EntityEquity.Data
         public DbSet<PaymentTransactionError>? PaymentTransactionErrors { get; set; }
         public DbSet<BillingAddress>? BillingAddresses { get; set; }
         public DbSet<ShippingAddress>? ShippingAddresses { get; set; }
+        public DbSet<LedgerEntry>? LedgerEntries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -60,6 +61,11 @@ namespace EntityEquity.Data
                 pte.Property(ptep => ptep.OccurredAt).HasDefaultValueSql("getutcdate()");
             });
 
+            modelBuilder.Entity<LedgerEntry>(le =>
+            {
+                le.Property(lep => lep.OccurredAt).HasDefaultValueSql("getutcdate()");
+            });
+
             base.OnModelCreating(modelBuilder);
         }
     }
@@ -77,6 +83,7 @@ namespace EntityEquity.Data
         public int Shares { get; set; }
         public bool AllowEquityOffers { get; set; }
         public bool ShowPublicInsights { get; set; }
+        public string OwnerUserId { get; set; }
     }
     [Serializable]
     public class PropertyManager
@@ -321,5 +328,14 @@ namespace EntityEquity.Data
         public string StreetAddress { get; set; }
         public string City { get; set; }
         public string ZipCode { get; set; }
+    }
+    public class LedgerEntry
+    {
+        public int LedgerEntryId { get; set; }
+        public string UserId { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Amount { get; set; }
+        public string Description { get; set; }
+        public DateTime OccurredAt { get; set; }
     }
 }

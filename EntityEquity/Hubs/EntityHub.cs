@@ -334,6 +334,7 @@ namespace EntityEquity.Hubs
                     order.BillingAddress = billingAddress;
                     await dbContext.SaveChangesAsync();
 
+                    await DistributePayments(order);
                     await GenerateInvoices();
 
                     var mustShip = (from oi in dbContext.OrderItems.Include(i => i.Offering)
@@ -351,6 +352,36 @@ namespace EntityEquity.Hubs
             }
             await Clients.Caller.SendAsync("OnFinalizedOrder");
             return returnObject;
+        }
+        private async Task DistributePayments(Order order)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var cogss = await (from p in dbContext.Properties
+                                  join pom in dbContext.PropertyOfferingMappings
+                                      on p.PropertyId equals pom.Property.PropertyId
+                                  join of in dbContext.Offerings
+                                      on pom.Offering.OfferingId equals of.OfferingId
+                                  join oi in dbContext.OrderItems
+                                      on of.OfferingId equals oi.Offering.OfferingId
+                                  join ii in dbContext.InventoryItems
+                                      on oi.Offering.InventoryItem.InventoryItemId equals ii.InventoryItemId
+                                   where oi.Order.OrderId == order.OrderId
+                                  group new { p, ii } by new { p.PropertyId, PropertyName = p.Name, p.OwnerUserId, ii.Cost } into ps
+                                  select new { ps.Key.PropertyId, ps.Key.PropertyName, ps.Key.OwnerUserId, Cost = ps.Sum(c => c.ii.Cost) }).ToListAsync();
+
+                foreach (var cogs in cogss)
+                {
+                    LedgerEntry entry = new()
+                    {
+                        UserId = cogs.OwnerUserId,
+                        Description = $"Property: {cogs.PropertyName} Order: {order.OrderId}",
+                        Amount = cogs.Cost
+                    };
+                    dbContext.LedgerEntries.Add(entry);
+                }
+                dbContext.SaveChanges();
+            }
         }
         private async Task GenerateInvoices()
         {
