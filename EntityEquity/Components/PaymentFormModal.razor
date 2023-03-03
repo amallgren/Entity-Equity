@@ -3,11 +3,14 @@
 @using EntityEquity.Data
 @using EntityEquity.Hubs
 @using EntityEquity.Models
+@using EntityEquity.Models.Mapping
 @using Microsoft.AspNetCore.SignalR
 @using Microsoft.AspNetCore.SignalR.Client
 @inject CookieBridgeConnection CookieBridgeConnection
 @inject IJSRuntime JS
-<EditForm Model="@model" OnValidSubmit="ValidSubmit">
+@if(paymentMethod == PaymentMethod.CreditCard)
+{
+<EditForm Model="@ccModel" OnValidSubmit="ValidCCSubmit">
     <DataAnnotationsValidator />
     
     <div class="modal fade" id="paymentFormModal" tabindex="-1" aria-labelledby="paymentFormModalLabel" aria-hidden="true">
@@ -26,38 +29,38 @@
             </div>
             <div class="row">
                 <label for="paymentInformationFirstNameText" class="col-md-4">First Name</label>
-                <input id="paymentInformationFirstNameText" class="col-md-8" @bind-value="model.BillingFirstName" />
+                <input id="paymentInformationFirstNameText" class="col-md-8" @bind-value="ccModel.BillingFirstName" />
             </div>
             <div class="row">
                 <label for="paymentInformationLastNameText" class="col-md-4">Last Name</label>
-                <input id="paymentInformationLastNameText" class="col-md-8" @bind-value="model.BillingLastName" />
+                <input id="paymentInformationLastNameText" class="col-md-8" @bind-value="ccModel.BillingLastName" />
             </div>
             <div class="row">
                 <label for="paymentInformationCardNumberText" class="col-md-4">Card Number</label>
-                <input id="paymentInformationCardNumberText" class="col-md-8" @bind-value="model.CreditCardNumber" />
+                <input id="paymentInformationCardNumberText" class="col-md-8" @bind-value="ccModel.CreditCardNumber" />
             </div>
             <div class="row">
                 <label for="paymentInformationExpirationDateText" class="col-md-4">Expiration Date</label>
-                <input id="paymentInformationExpirationDateText" maxlength="4" class="col-md-8" @bind-value="model.CreditCardExpirationDate" />
+                <input id="paymentInformationExpirationDateText" maxlength="4" class="col-md-8" @bind-value="ccModel.CreditCardExpirationDate" />
             </div>
             <div class="row">
                 <label for="paymentInformationSecurityCodeText" class="col-md-4">Security Code</label>
-                <input id="paymentInformationSecurityCodeText" class="col-md-8" @bind-value="model.CreditCardSecurityCode" />
+                <input id="paymentInformationSecurityCodeText" class="col-md-8" @bind-value="ccModel.CreditCardSecurityCode" />
             </div>
             <div style="text-align:center;font-size:1rem;">
                 Billing Address
             </div>
             <div class="row">
                 <label for="paymentInformationBillingAddressLine1Text" class="col-md-4">Address</label>
-                <input id="paymentInformationBillingAddressLine1Text" class="col-md-8" @bind-value="model.BillingAddress" />
+                <input id="paymentInformationBillingAddressLine1Text" class="col-md-8" @bind-value="ccModel.BillingAddress" />
             </div>
             <div class="row">
                 <label for="paymentInformationBillingCityText" class="col-md-4">City</label>
-                <input id="paymentInformationBillingCityText" class="col-md-8" @bind-value="model.BillingCity" />
+                <input id="paymentInformationBillingCityText" class="col-md-8" @bind-value="ccModel.BillingCity" />
             </div>
             <div class="row">
                 <label for="paymentInformationBillingZipCodeText" class="col-md-4">ZIP Code</label>
-                <input id="paymentInformationBillingZipCodeText" class="col-md-8" @bind-value="model.BillingZipCode" />
+                <input id="paymentInformationBillingZipCodeText" class="col-md-8" @bind-value="ccModel.BillingZipCode" />
             </div>
             </div>
           <div class="modal-footer">
@@ -67,23 +70,85 @@
         </div>
       </div>
     </div>
-</EditForm>
+    </EditForm>
+}
+else if (paymentMethod == PaymentMethod.eCheck)
+{
+    <EditForm Model="@ecModel" OnValidSubmit="ValidECSubmit">
+    <DataAnnotationsValidator />
+    
+    <div class="modal fade" id="paymentFormModal" tabindex="-1" aria-labelledby="paymentFormModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="paymentFormModalLabel">Process payment</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div style="text-align:center;font-size:1rem;">
+                Payment Information
+            </div>
+            <div>
+                <span style="color:red;">@errorMessage</span>
+            </div>
+            <div class="row">
+                <label for="paymentInformationRoutingNumberText" class="col-md-4">Routing Number</label>
+                <input id="paymentInformationRoutingNumberText" class="col-md-8" @bind-value="ecModel.RoutingNumber" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationAccountNumberText" class="col-md-4">Account</label>
+                <input id="paymentInformationAccountNumberText" class="col-md-8" @bind-value="ecModel.AccountNumber" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationNameOnAccountText" class="col-md-4">Name on Account</label>
+                <input id="paymentInformationNameOnAccountText" class="col-md-8" @bind-value="ecModel.Name" />
+            </div>
+            <div class="row">
+                <label for="paymentInformationTypeOfAccountText" class="col-md-4">Type of Account</label>
+                <select id="paymentInformationTypeOfAccountText" class="col-md-8" @bind="ecModel.AccountType">
+                    <option value="@bankAccountTypeEnum.checking.ToString()">
+                        Checking
+                    </option>
+                    <option value="@bankAccountTypeEnum.savings.ToString()">
+                        Savings
+                    </option>
+                    <option value="@bankAccountTypeEnum.businessChecking.ToString()">
+                        Business Checking
+                    </option>
+                </select>
+            </div>
+            <div class="row">
+                <label for="paymentInformationNameOfBankText" class="col-md-4">Name of Bank</label>
+                <input id="paymentInformationNameOfBankText" class="col-md-8" @bind-value="ecModel.BankName" />
+            </div>
+            </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </EditForm>
+}
 <ShippingFormModal Cookie="@Cookie" Order="@order"></ShippingFormModal>
 
 @code {
     [Parameter]
     public string? Cookie { get; set; }
     private HubConnection? hubConnection;
-    public PaymentFormModel model = new();
+    public CreditCardPaymentFormModel ccModel = new();
+    public eCheckPaymentFormModel ecModel = new();
     private string errorMessage = "";
-    private Order? order = null;  
+    private Order? order = null;
+    private PaymentMethod paymentMethod;
     protected override async Task OnInitializedAsync()
     {
         hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
         await hubConnection.StartAsync();
+        paymentMethod = await hubConnection.InvokeAsync<PaymentMethod>("GetPaymentMethod");
     }
-
-    public async void ValidSubmit()
+    public async void ValidCCSubmit()
     {
         List<lineItemType> lineItems = new();
 
@@ -92,30 +157,10 @@
             lineItems = await hubConnection.InvokeAsync<List<lineItemType>>("GetLineItems");
         }
         var total = lineItems.Sum<lineItemType>(i => (i.unitPrice * i.quantity));
-        var creditCard = new creditCardType
-            {
-                cardNumber = model.CreditCardNumber,
-                expirationDate = model.CreditCardExpirationDate,
-                cardCode = model.CreditCardSecurityCode
-            };
-        var billingAddress = new customerAddressType
-            {
-                firstName = model.BillingFirstName,
-                lastName = model.BillingLastName,
-                address = model.BillingAddress,
-                city = model.BillingCity,
-                zip = model.BillingZipCode
-            };
-        CreditCardRunParameters ccParameters = new()
-            {
-                CreditCard = creditCard,
-                BillingAddress = billingAddress,
-                LineItems = lineItems,
-                Amount = total
-            };
+        CreditCardPaymentParameters parameters = PaymentForm.MapCreditCard(ccModel,lineItems, total);
         if (hubConnection is not null)
         {
-            var finalizeOrderResult = await hubConnection.InvokeAsync<FinalizeOrderReturnModel>("FinalizeOrder", ccParameters);
+            var finalizeOrderResult = await hubConnection.InvokeAsync<FinalizeOrderReturnModel>("FinalizeCreditCardOrder", parameters);
             if (!finalizeOrderResult.Result.Successful)
             {
                 errorMessage = finalizeOrderResult.Result.Error.ErrorCode + finalizeOrderResult.Result.Error.ErrorMessage;
@@ -132,5 +177,9 @@
             order = finalizeOrderResult.Order;
             await InvokeAsync(StateHasChanged);
         }
+    }
+    public async void ValidECSubmit()
+    {
+        
     }
 }

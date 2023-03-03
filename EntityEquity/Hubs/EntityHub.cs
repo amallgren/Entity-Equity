@@ -4,6 +4,7 @@ using AuthorizeNet.Api.Controllers.Bases;
 using EntityEquity.Common;
 using EntityEquity.Data;
 using EntityEquity.Data.CommonDataSets;
+using EntityEquity.Data.Models;
 using EntityEquity.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -35,7 +36,8 @@ namespace EntityEquity.Hubs
                     Slug = model.Slug, 
                     Shares = model.Shares,
                     AllowEquityOffers = model.EquityOffers, 
-                    ShowPublicInsights = model.PublicInsights };
+                    ShowPublicInsights = model.PublicInsights,
+                    OwnerUserId = _userManager.GetUserId(Context.User)};
                 dbContext.Properties!.Add(property);
                 await dbContext.SaveChangesAsync();
 
@@ -316,26 +318,106 @@ namespace EntityEquity.Hubs
             }
         }
         [Authorize]
-        public async Task<FinalizeOrderReturnModel> FinalizeOrder(CreditCardRunParameters parameters)
+        public async Task<PaymentMethod> GetPaymentMethod()
         {
-            CreditCardCharge charge = new CreditCardCharge(_configuration, _dbContextFactory, _userManager, Context.User);
-            var result = await charge.Run(parameters);
+            try { 
+                using (var dbContext = _dbContextFactory.CreateDbContext())
+                {
+                    var order = await(from o in dbContext.Orders
+                                      where o.UserId == _userManager.GetUserId(Context.User)
+                                              && o.State == OrderState.Incomplete
+                                      select o).FirstOrDefaultAsync();
+                    if (order is not null)
+                    { 
+                        bool eCheck = (from of in dbContext.Offerings
+                                       join oi in dbContext.OrderItems
+                                           on of.OfferingId equals oi.Offering.OfferingId
+                                       where of.MustPayWithECheck == true
+                                           && oi.Order.OrderId == order.OrderId
+                                       select of).Any();
+                        if (eCheck)
+                            return PaymentMethod.eCheck;
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                string breakpoint = "";
+            }
+            return PaymentMethod.CreditCard;
+        }
+        public async Task<FinalizeOrderReturnModel> FinalizeCreditCardOrder(CreditCardPaymentParameters parameters)
+        {
             FinalizeOrderReturnModel returnObject = null;
-            if (result.Successful)
+            try
             {
                 using (var dbContext = _dbContextFactory.CreateDbContext())
                 {
                     var order = await (from o in dbContext.Orders
                                        where o.UserId == _userManager.GetUserId(Context.User)
-                                              && o.State == OrderState.Incomplete
+                                               && o.State == OrderState.Incomplete
                                        select o).FirstOrDefaultAsync();
+                    Payment payment = new Payment(_configuration, _dbContextFactory, _userManager, Context.User);
+                    PaymentResult result = new();
 
+                    result = await payment.RunCard(parameters);
                     var billingAddress = await SaveBillingAddress(parameters);
                     order.BillingAddress = billingAddress;
                     await dbContext.SaveChangesAsync();
 
-                    await DistributePayments(order);
+                    var register = await GetPaymentRegister(order);
+                    register = await ProcessPlatformFee(order, register, PaymentMethod.CreditCard);
+
+                    await DistributeCOGSPayments(order, register);
+                    await DistributeProfitShares(order, register);
                     await GenerateInvoices();
+
+                    order.State = OrderState.Complete;
+                    await dbContext.SaveChangesAsync();
+
+                    var mustShip = (from oi in dbContext.OrderItems.Include(i => i.Offering)
+                                    where oi.Order.OrderId == order.OrderId
+                                        && oi.Offering.MustShip
+                                    select oi).Any();
+
+                    returnObject = new()
+                    {
+                        Order = order,
+                        Result = result,
+                        MustShip = mustShip
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                string breakpoint = "";
+            }
+            await Clients.Caller.SendAsync("OnFinalizedOrder");
+            return returnObject;
+        }
+        public async Task<FinalizeOrderReturnModel> FinalizedECheckOrder(eCheckPaymentParameters parameters)
+        {
+            FinalizeOrderReturnModel returnObject = null;
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var order = await (from o in dbContext.Orders
+                                   where o.UserId == _userManager.GetUserId(Context.User)
+                                           && o.State == OrderState.Incomplete
+                                   select o).FirstOrDefaultAsync();
+                Payment payment = new Payment(_configuration, _dbContextFactory, _userManager, Context.User);
+                PaymentResult result = new();
+
+                result = await payment.RunCheck((eCheckPaymentParameters)parameters);
+
+                if (result.Successful)
+                {
+                    var register = await GetPaymentRegister(order);  
+                    ProcessPlatformFee(order, register, PaymentMethod.eCheck);
+                    await DistributeCOGSPayments(order, register);
+                    await DistributeProfitShares(order, register);
+                    await GenerateInvoices();
+                    order.State = OrderState.Complete;
+                    await dbContext.SaveChangesAsync();
 
                     var mustShip = (from oi in dbContext.OrderItems.Include(i => i.Offering)
                                     where oi.Order.OrderId == order.OrderId
@@ -353,7 +435,90 @@ namespace EntityEquity.Hubs
             await Clients.Caller.SendAsync("OnFinalizedOrder");
             return returnObject;
         }
-        private async Task DistributePayments(Order order)
+        private async Task<PaymentRegister> GetPaymentRegister(Order order)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            { 
+                var books  = await (from p in dbContext.Properties
+                               join pom in dbContext.PropertyOfferingMappings
+                                   on p.PropertyId equals pom.Property.PropertyId
+                               join of in dbContext.Offerings
+                                   on pom.Offering.OfferingId equals of.OfferingId
+                               join oi in dbContext.OrderItems
+                                   on of.OfferingId equals oi.Offering.OfferingId
+                               join ii in dbContext.InventoryItems
+                                   on oi.Offering.InventoryItem.InventoryItemId equals ii.InventoryItemId
+                               where oi.Order.OrderId == order.OrderId
+                               group new { p, of } by new { p.PropertyId } into pof
+                               select new PropertyBook
+                               {
+                                   PropertyId = pof.Key.PropertyId,
+                                   Amount = pof.Sum(ofa => ofa.of.Price),
+                                   Deductions = 0
+                               }).ToListAsync();
+                PaymentRegister register = new PaymentRegister();
+                register.Books = books;
+                return register;
+            }
+        }
+        private async Task<PaymentRegister> ProcessPlatformFee(Order order, PaymentRegister register, PaymentMethod paymentMethod)
+        {
+            decimal baseAmount = 0;
+            decimal percentage = 0;
+            if (paymentMethod == PaymentMethod.CreditCard)
+            {
+                IConfigurationSection section = _configuration.GetSection("PlatformFee:CreditCard");
+                baseAmount = section.GetValue<decimal>("Base");
+                percentage = section.GetValue<decimal>("Percentage")/100;
+            }
+            else if (paymentMethod == PaymentMethod.eCheck)
+            {
+                IConfigurationSection section = _configuration.GetSection("PlatformFee:eCheck");
+                baseAmount = section.GetValue<decimal>("Base");
+                percentage = section.GetValue<decimal>("Percentage") / 100;
+            }
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var platformFees = await (from p in dbContext.Properties
+                                   join u in dbContext.Users
+                                     on p.OwnerUserId equals u.Id
+                                   join pom in dbContext.PropertyOfferingMappings
+                                       on p.PropertyId equals pom.Property.PropertyId
+                                   join of in dbContext.Offerings
+                                       on pom.Offering.OfferingId equals of.OfferingId
+                                   join oi in dbContext.OrderItems
+                                       on of.OfferingId equals oi.Offering.OfferingId
+                                   join ii in dbContext.InventoryItems
+                                       on oi.Offering.InventoryItem.InventoryItemId equals ii.InventoryItemId
+                                   where oi.Order.OrderId == order.OrderId
+                                   group new { p, u, of } by new { p.PropertyId, u.Id } into puf
+                                   select new PlatformFee { PlatformId = puf.Key.PropertyId, 
+                                       UserId = puf.Key.Id, 
+                                       Amount = (puf.Sum(ofa => ofa.of.Price) * percentage) + baseAmount }).ToListAsync();
+
+                foreach (PlatformFee platformFee in platformFees)
+                {
+                    decimal amount = Math.Round(platformFee.Amount, 2);
+                    register.Deduct(platformFee.PlatformId, amount);
+
+                    string description = paymentMethod == PaymentMethod.CreditCard ?
+                        $"Platform Fee - Credit Card - Order #{order.OrderId} - Property #{platformFee.PlatformId} - {platformFee.UserId}"
+                        : $"Platform Fee - eCheck - Order #{order.OrderId} - Property #{platformFee.PlatformId} - {platformFee.UserId}";
+
+                    LedgerEntry entry = new()
+                    {
+                        UserId = platformFee.UserId,
+                        Amount = amount,
+                        Description = description
+                    };
+
+                    dbContext.LedgerEntries.Add(entry);
+                }
+                await dbContext.SaveChangesAsync();
+            }
+            return register;
+        }
+        private async Task<PaymentRegister> DistributeCOGSPayments(Order order, PaymentRegister register)
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
@@ -367,20 +532,90 @@ namespace EntityEquity.Hubs
                                   join ii in dbContext.InventoryItems
                                       on oi.Offering.InventoryItem.InventoryItemId equals ii.InventoryItemId
                                    where oi.Order.OrderId == order.OrderId
-                                  group new { p, ii } by new { p.PropertyId, PropertyName = p.Name, p.OwnerUserId, ii.Cost } into ps
-                                  select new { ps.Key.PropertyId, ps.Key.PropertyName, ps.Key.OwnerUserId, Cost = ps.Sum(c => c.ii.Cost) }).ToListAsync();
+                                  group new { p, oi, ii } by new { p.PropertyId, PropertyName = p.Name, p.OwnerUserId } into ps
+                                  select new { ps.Key.PropertyId, ps.Key.PropertyName, ps.Key.OwnerUserId, Amount = ps.Sum(c => c.ii.Cost * c.oi.Quantity) }).ToListAsync();
 
                 foreach (var cogs in cogss)
                 {
+                    decimal amount;
+                    decimal remaining = register.GetRemaining(cogs.PropertyId);
+                    if (remaining < cogs.Amount)
+                    {
+                        register.Deduct(cogs.PropertyId, remaining);
+                        amount = remaining;
+                    }
+                    else
+                    {
+                        register.Deduct(cogs.PropertyId, cogs.Amount);
+                        amount = cogs.Amount;
+                    }
+
                     LedgerEntry entry = new()
                     {
                         UserId = cogs.OwnerUserId,
-                        Description = $"Property: {cogs.PropertyName} Order: {order.OrderId}",
-                        Amount = cogs.Cost
+                        Description = $"COGS Payment - Property #{cogs.PropertyId} - Property Name: {cogs.PropertyName} - Order #{order.OrderId}",
+                        Amount = amount
                     };
                     dbContext.LedgerEntries.Add(entry);
                 }
-                dbContext.SaveChanges();
+                await dbContext.SaveChangesAsync();
+            }
+            return register;
+        }
+        private async Task DistributeProfitShares(Order order, PaymentRegister register)
+        {
+            List<Shareholder> shareholders = await GetShareholders(order);
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                foreach (var shareholder in shareholders)
+                {
+                    decimal payout = register.GetRemaining(shareholder.PropertyId) * (shareholder.Shares/shareholder.PropertyShares);
+                    if (payout > 0)
+                    { 
+                        payout = Math.Round(payout, 2);
+                        LedgerEntry entry = new()
+                        {
+                            UserId = shareholder.UserId,
+                            Description = $"Profit Payout - Property #{shareholder.PropertyId} - Property Name: {shareholder.PropertyName} - Order #{order.OrderId}",
+                            Amount = payout
+                        };
+                        dbContext.LedgerEntries.Add(entry);
+                    }
+                }
+                await dbContext.SaveChangesAsync();
+            }
+        }
+        private async Task<List<Shareholder>> GetShareholders(Order order)
+        {
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                var shares = await (from et in dbContext.EquityTransactions
+                            join p in dbContext.Properties
+                                 on et.Property.PropertyId equals p.PropertyId
+                            join pom in dbContext.PropertyOfferingMappings
+                                on p.PropertyId equals pom.Property.PropertyId
+                            join of in dbContext.Offerings
+                                on pom.Offering.OfferingId equals of.OfferingId
+                            join oi in dbContext.OrderItems
+                                on of.OfferingId equals oi.Offering.OfferingId
+                            where oi.Order.OrderId == order.OrderId
+                            group new { et, p } by new { p.PropertyId, PropertyName = p.Name, PropertyShares = p.Shares, et.BuyerUserId } into bet
+                            where (bet.Sum(e => e.et.Shares) - (from ets in dbContext.EquityTransactions
+                                                               where ets.Property.PropertyId == bet.Key.PropertyId
+                                                                  && ets.SellerUserId == bet.Key.BuyerUserId
+                                                               select ets.Shares).Sum()) > 0
+                            select new Shareholder
+                            {
+                                PropertyId = bet.Key.PropertyId,
+                                PropertyName = bet.Key.PropertyName,
+                                PropertyShares = bet.Key.PropertyShares,
+                                UserId = bet.Key.BuyerUserId,
+                                Shares = bet.Sum(e => e.et.Shares) - (from ets in dbContext.EquityTransactions
+                                                                      where ets.Property.PropertyId == bet.Key.PropertyId
+                                                                         && ets.SellerUserId == bet.Key.BuyerUserId
+                                                                      select ets.Shares).Sum()
+                            }).ToListAsync();
+                return shares;
             }
         }
         private async Task GenerateInvoices()
@@ -412,7 +647,7 @@ namespace EntityEquity.Hubs
                 }
             }
         }
-        private async Task<BillingAddress> SaveBillingAddress(CreditCardRunParameters parameters)
+        private async Task<BillingAddress> SaveBillingAddress(CreditCardPaymentParameters parameters)
         {
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
@@ -499,23 +734,16 @@ namespace EntityEquity.Hubs
         [Authorize]
         public async Task SaveShippingAddress(Order order, ShippingAddress newAddress)
         {
-            try
+            using (var dbContext = _dbContextFactory.CreateDbContext())
             {
-                using (var dbContext = _dbContextFactory.CreateDbContext())
-                {
-                    newAddress.UserId = _userManager.GetUserId(Context.User);
-                    dbContext.ShippingAddresses.Add(newAddress);
-                    await dbContext.SaveChangesAsync();
+                newAddress.UserId = _userManager.GetUserId(Context.User);
+                dbContext.ShippingAddresses.Add(newAddress);
+                await dbContext.SaveChangesAsync();
 
-                    order.ShippingAddress = newAddress;
-                    dbContext.Orders.Attach(order);
+                order.ShippingAddress = newAddress;
+                dbContext.Orders.Attach(order);
 
-                    await dbContext.SaveChangesAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                string breakpoint = "";
+                await dbContext.SaveChangesAsync();
             }
         }
     }

@@ -1,4 +1,5 @@
 using EntityEquity.Data;
+using EntityEquity.Data.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;

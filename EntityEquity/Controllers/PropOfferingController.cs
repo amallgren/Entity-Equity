@@ -1,4 +1,5 @@
 ﻿using EntityEquity.Data;
+using EntityEquity.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

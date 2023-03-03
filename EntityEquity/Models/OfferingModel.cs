@@ -37,6 +37,7 @@ namespace EntityEquity.Models
                 return InventoryItemIdStrings.ToIntArray();
             }
         }
+        [Range(1, 10_000_000_000_000, ErrorMessage="Price must be at least 1 and no great than 10,000,000,000,000.00")]
         public decimal Price { get; set; }
         public bool MustShip { get; set; }
         public List<OfferingManager> OfferingManagers { get; set; }

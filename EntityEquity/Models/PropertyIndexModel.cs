@@ -6,7 +6,6 @@ namespace EntityEquity.Models
     public class PropertyIndexModel
     {
         public List<Property>? Properties { get; set; }
-        public List<EquityShare>? EquityShares { get; set; }
         public string UserId { get; set; }
         public PropertyIndexModel(string userId)
         {

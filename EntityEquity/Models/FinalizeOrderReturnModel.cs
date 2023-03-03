@@ -5,7 +5,7 @@ namespace EntityEquity.Models
     public class FinalizeOrderReturnModel
     {
         public Order Order { get; set; }
-        public CreditCardResult Result { get; set; }
+        public PaymentResult Result { get; set; }
         public bool MustShip { get; set; }
         public bool PaidMustShip
         {

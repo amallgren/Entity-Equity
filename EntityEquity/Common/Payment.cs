@@ -13,13 +13,13 @@ using System.Security.Claims;
 
 namespace EntityEquity.Common
 {
-    public class CreditCardCharge
+    public class Payment
     {
         private IConfiguration _configuration;
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private UserManager<IdentityUser> _userManager;
         private ClaimsPrincipal _user;
-        public CreditCardCharge(IConfiguration configuration, 
+        public Payment(IConfiguration configuration, 
             IDbContextFactory<ApplicationDbContext> dbContextFactory, 
             UserManager<IdentityUser> userManager,
             ClaimsPrincipal user)
@@ -29,22 +29,69 @@ namespace EntityEquity.Common
             _userManager = userManager;
             _user = user;
         }
-        public async Task<CreditCardResult> Run(CreditCardRunParameters parameters)
+        private void SetEnvironmentAndMerchant()
+        {
+            IConfigurationSection authorizeNetConfig = _configuration.GetSection("AuthorizeNet");
+            var apiLoginId = authorizeNetConfig.GetValue<string>("ApiLoginId");
+            var apiTransactionKey = authorizeNetConfig.GetValue<string>("ApiTransactionKey");
+            ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = AuthorizeNet.Environment.SANDBOX;
+
+            // define the merchant information (authentication / transaction id)
+            ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+            {
+                name = apiLoginId,
+                ItemElementName = ItemChoiceType.transactionKey,
+                Item = apiTransactionKey
+            };
+        }
+        public async Task<PaymentResult> RunCheck(eCheckPaymentParameters parameters)
         {
             try
             {
-                IConfigurationSection authorizeNetConfig = _configuration.GetSection("AuthorizeNet");
-                var apiLoginId = authorizeNetConfig.GetValue<string>("ApiLoginId");
-                var apiTransactionKey = authorizeNetConfig.GetValue<string>("ApiTransactionKey");
-                ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = AuthorizeNet.Environment.SANDBOX;
-
-                // define the merchant information (authentication / transaction id)
-                ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+                SetEnvironmentAndMerchant();
+                var paymentType = new paymentType { Item = parameters.BankAccount };
+                var transactionRequest = new transactionRequestType
                 {
-                    name = apiLoginId,
-                    ItemElementName = ItemChoiceType.transactionKey,
-                    Item = apiTransactionKey
+                    transactionType = transactionTypeEnum.authCaptureTransaction.ToString(),
+                    payment = paymentType,
+                    amount = parameters.Amount
                 };
+                return await ProcessPayment(transactionRequest);
+            }
+            catch(Exception ex)
+            {
+                
+            }
+            return null;
+        }
+        private async Task<PaymentResult> ProcessPayment(transactionRequestType transactionRequest)
+        {
+            Data.CommonDataSets.Orders orderDataSet = new(_dbContextFactory, _userManager, _user);
+            var order = orderDataSet.GetIncompleteOrder();
+
+            var request = new createTransactionRequest
+            {
+                transactionRequest = transactionRequest,
+                refId = $"Order #{order.OrderId}"
+            };
+
+            var controller = new createTransactionController(request);
+            controller.Execute();
+            var response = controller.GetApiResponse();
+
+            var result = await ProcessResponse(response, order);
+
+            if (response is null)
+            {
+                result.Error = ProcessServerError(order, controller);
+            }
+            return result;
+        }
+        public async Task<PaymentResult> RunCard(CreditCardPaymentParameters parameters)
+        {
+            try
+            {
+                SetEnvironmentAndMerchant();
 
                 var creditCard = parameters.CreditCard;
                 var billingAddress = parameters.BillingAddress;
@@ -58,38 +105,25 @@ namespace EntityEquity.Common
                     billTo = billingAddress,
                     lineItems = lineItems
                 };
-
-                var request = new createTransactionRequest { transactionRequest = transactionRequest };
-                var controller = new createTransactionController(request);
-                controller.Execute();
-
-                var response = controller.GetApiResponse();
-
-                Data.CommonDataSets.Orders orderDataSet = new(_dbContextFactory, _userManager, _user);
-                var order = orderDataSet.GetIncompleteOrder();
-
-                var result = await ProcessResponse(response, order);
-
-                if (response is null)
-                {
-                    
-                    var errorResponse = controller.GetErrorResponse();
-                    PaymentTransactionError error = new PaymentTransactionError()
-                    {
-                        Order = order,
-                        ErrorCode = errorResponse.messages.resultCode.ToString(),
-                        ErrorMessage = errorResponse.messages.message.ToString()
-                    };
-                    LogPaymentTransactionError(error);
-                    result.Error = error;
-                }
-                return result;
+                return await ProcessPayment(transactionRequest);
             }
             catch (Exception ex)
             {
                 string breakpoint = "";
             }
             return null;
+        }
+        private PaymentTransactionError? ProcessServerError(Order order, createTransactionController controller)
+        {
+            var errorResponse = controller.GetErrorResponse();
+            PaymentTransactionError error = new PaymentTransactionError()
+            {
+                Order = order,
+                ErrorCode = errorResponse.messages.resultCode.ToString(),
+                ErrorMessage = errorResponse.messages.message.ToString()
+            };
+            LogPaymentTransactionError(error);
+            return error;
         }
         private async Task LogPaymentTransactionError(PaymentTransactionError error)
         {
@@ -100,9 +134,9 @@ namespace EntityEquity.Common
                 await dbContext.SaveChangesAsync();
             }
         }
-        private async Task<CreditCardResult> ProcessResponse(createTransactionResponse response, Order order)
+        private async Task<PaymentResult> ProcessResponse(createTransactionResponse response, Order order)
         {
-            CreditCardResult result = new();
+            PaymentResult result = new();
             result.Successful = false;
             PaymentTransactionError error = new PaymentTransactionError()
             {
@@ -172,16 +206,53 @@ namespace EntityEquity.Common
         }
 
     }
-    public class CreditCardRunParameters
+    public class CreditCardPaymentParameters : PaymentParameters
     {
         public creditCardType CreditCard { get; set; }
         public customerAddressType BillingAddress { get; set; }
         public List<lineItemType> LineItems { get; set; }
+    }
+    public class eCheckPaymentParameters : PaymentParameters
+    {
+        public bankAccountType BankAccount { get; set; }
+    }
+
+    public class PaymentParameters
+    {
         public decimal Amount { get; set; }
     }
-    public class CreditCardResult
+    public class PaymentResult
     {
         public bool Successful { get; set; }
         public PaymentTransactionError? Error { get; set; }
+    }
+    public class PaymentRegister
+    {
+        public List<PropertyBook> Books = new();
+        public decimal GetDeductions(int propertyId)
+        {
+            return (from r in Books
+                          where r.PropertyId == propertyId
+                          select r.Deductions).FirstOrDefault();
+        }
+        public decimal GetRemaining(int propertyId)
+        {
+            return (from r in Books
+                    where r.PropertyId == propertyId
+                    select r.Amount - r.Deductions).FirstOrDefault();
+        }
+        public void Deduct(int propertyId, decimal deduction)
+        {
+            var record = (from r in Books
+                          where r.PropertyId == propertyId
+                          select r).FirstOrDefault();
+            record.Deductions += deduction;
+        }
+    }
+    public class PropertyBook
+    {
+        public int PropertyId;
+        public decimal Amount;
+        public decimal Deductions;
     }
 }

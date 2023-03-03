@@ -2,7 +2,7 @@
 
 namespace EntityEquity.Models
 {
-    public class PaymentFormModel
+    public class CreditCardPaymentFormModel
     {
         [Required]
         public string BillingFirstName { get; set; }

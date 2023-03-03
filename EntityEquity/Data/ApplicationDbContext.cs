@@ -10,6 +10,7 @@ namespace EntityEquity.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
+            
         }
         public DbSet<Property>? Properties { get; set; }
         public DbSet<PropertyManager>? PropertyManagers { get; set; }
@@ -117,6 +118,7 @@ namespace EntityEquity.Data
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
         public bool MustShip { get; set; }
+        public bool MustPayWithECheck { get; set; }
     }
     [Serializable]
     public class OfferingManager
@@ -161,19 +163,6 @@ namespace EntityEquity.Data
     }
     [Serializable]
     public enum OfferingManagerRoles { Administrator }
-    [Serializable]
-    public class EquityShare
-    {
-        public EquityShare()
-        {
-            Property = new();
-            UserId = "";
-        }
-        public int EquityShareId { get; set; }
-        public Property Property { get; set; }
-        public string UserId { get; set; }
-        public decimal Percentage { get; set; }
-    }
     [Serializable]
     public class Inventory
     {
@@ -223,8 +212,12 @@ namespace EntityEquity.Data
         public OrderState State { get; set; }
         public BillingAddress? BillingAddress { get; set; }
         public ShippingAddress? ShippingAddress { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PlatformFee { get; set; }
+        public PaymentMethod PaymentMethod { get; set; }
     }
     public enum OrderState { Incomplete, Complete }
+    public enum PaymentMethod { CreditCard, eCheck }
     public class OrderItem
     {
         public int OrderItemId { get; set; }
@@ -232,23 +225,6 @@ namespace EntityEquity.Data
         public Property? Property { get; set; }
         public Offering? Offering { get; set; }
         public int Quantity { get; set; }
-    }
-    public class OfferingWithOrderItem
-    {
-        public Offering? Offering { get; set; }
-        public OrderItem? OrderItem { get; set; }
-        public List<PhotoUrl>? Photos { get; set; }
-    }
-    public class OfferingWithProperty
-    {
-        public Offering? Offering;
-        public Property? Property;
-        public List<PhotoUrl>? Photos;
-    }
-    public class OfferingWithInventoryItem
-    {
-        public Offering? Offering;
-        public InventoryItem? InventoryItem;
     }
     public class Invoice
     {
@@ -324,10 +300,10 @@ namespace EntityEquity.Data
         public int ShippingAddressId { get; set; }
         public string UserId { get; set; }
         public bool SameAsBillingAddress { get; set; }
-        public string Name { get; set; }
-        public string StreetAddress { get; set; }
-        public string City { get; set; }
-        public string ZipCode { get; set; }
+        public string? Name { get; set; }
+        public string? StreetAddress { get; set; }
+        public string? City { get; set; }
+        public string? ZipCode { get; set; }
     }
     public class LedgerEntry
     {
