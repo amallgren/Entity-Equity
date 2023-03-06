@@ -14,10 +14,10 @@
 @inject CookieBridgeConnection CookieBridgeConnection
 @inject IHttpClientFactory HttpClientFactory
 @implements IAsyncDisposable
-<div style="display:flex; flex-wrap:wrap;">
-    <div style="width:275px; min-width:275px; border: solid 2px black; padding:0px 10px 10px 10px; border-radius: 10px;">
-        <h2 class="panel-section-title">Filters</h2>
-        <div style="display:grid; grid-template-columns: 75px 5fr; row-gap: 10px">
+<div class="flex-wrap-page">
+    <div class="action-panel">
+        <h2 class="panel-section-title">Filters/Action Targets</h2>
+        <div class="action-panel-grid">
             <label>Properties</label>
             <select multiple @onchange="OnChangeProperties">
                 @foreach (var property in Properties)
@@ -34,7 +34,7 @@
             </select>
         </div>
         <h2 class="panel-section-title">Actions</h2>
-        <div style="text-align:center;">
+        <div class="action-panel-button">
             <button type="button" data-bs-toggle="modal" data-bs-target="#addOfferingModal">Add Offering</button>
         </div>
     </div>

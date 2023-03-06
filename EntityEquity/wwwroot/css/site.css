@@ -34,11 +34,12 @@ body {
     width: 100px;
 }
 
-.property-tile {
+.tile {
     border: 1px solid grey;
     border-radius: 10px;
     padding: 4px 7px 7px 7px;
     margin: 8px;
+    background-image: linear-gradient(to bottom right, Azure, AliceBlue);
 }
 
 .property-tile .name {
@@ -76,4 +77,24 @@ body {
 .prop-item-image {
     width:250px;
     height:200px;
+}
+.flex-wrap-page {
+    display: flex;
+    flex-wrap: wrap;
+}
+.action-panel {
+    width: 100%;
+    max-width: 325px;
+    border: solid 2px black;
+    padding: 0px 10px 10px 10px;
+    border-radius: 10px;
+}
+.action-panel-grid {
+    display: grid;
+    grid-template-columns: 85px 5fr;
+    row-gap: 10px
+}
+.action-panel-button {
+    text-align: center;
+    margin-bottom:15px;
 }

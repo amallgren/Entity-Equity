@@ -51,6 +51,10 @@ namespace EntityEquity.Data
 
                 et.Navigation("Property");
             });
+            modelBuilder.Entity<Inventory>(i =>
+            {
+                i.Property(ie => ie.CreatedAt).HasDefaultValueSql("getutcdate()");
+            });
 
             modelBuilder.Entity<PaymentTransaction>(pt =>
             {
@@ -172,6 +176,7 @@ namespace EntityEquity.Data
         }
         public int InventoryId { get; set; }
         public string Name { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
     [Serializable]
     public class InventoryItem

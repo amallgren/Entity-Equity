@@ -6,35 +6,52 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @inject CookieBridgeConnection CookieBridgeConnection
 
-<div>
-<label for="inventories">Inventory</label>
-<select id="inventories" multiple @onchange="OnChangeInventory">
-    @if (Inventories!=null)
-    {
-        foreach(var inventory in Inventories)
-        {
-            <option value="@inventory.InventoryId">@inventory.Name</option>
-        }
-    }
-</select>
-<button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryModal">Add An Inventory</button>
-</div>
-<div style="display:flex;">
-    @if (InventoryItems is not null)
-    {
-        foreach(var inventoryItem in InventoryItems)
-        {
-            <div>
-                @inventoryItem.Name
-           </div>
-        }
-    }
-    <div>
-        <div>
+<div class="flex-wrap-page">
+    <div class="action-panel">
+        <h2 class="panel-section-title">Filter/Action Target</h2>
+        <div class="action-panel-grid">
+            <label for="inventories">Inventory</label>
+            <select id="inventories" multiple @onchange="OnChangeInventory">
+                @if (Inventories!=null)
+                {
+                    foreach(var inventory in Inventories)
+                    {
+                        <option value="@inventory.InventoryId">@inventory.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <h2 class="panel-section-title">Actions</h2>
+        <div class="action-panel-button">
+            <button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryModal">Add An Inventory</button>
+        </div>
+        <div class="action-panel-button">
             <button type="button" data-bs-toggle="modal" data-bs-target="#addAnInventoryItemModal">Add An Inventory Item</button>
         </div>
     </div>
+
+    <div style="display:flex;">
+        @if (InventoryItems is not null)
+        {
+            foreach(var inventoryItem in InventoryItems)
+            {
+                <div class="tile">
+                    @inventoryItem.Name
+                    <div>
+                        Cost: @inventoryItem.Cost
+                    </div>
+               </div>
+            }
+        }
+        <div>
+            <div>
+            
+            </div>
+        </div>
+    </div>
+
 </div>
+
 <AddAnInventoryItemModal InventoryIds=@SelectedInventory Cookie="@Cookie"></AddAnInventoryItemModal>
 
 @code {

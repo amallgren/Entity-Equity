@@ -38,6 +38,7 @@ namespace EntityEquity.Data.CommonDataSets
                 return holdings.Buys - holdings.Sells;
             }
         }
+
         public List<LiveOffer> GetLiveOffers()
         {
             List<LiveOffer> liveOffers = new List<LiveOffer>();

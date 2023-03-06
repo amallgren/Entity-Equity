@@ -1,18 +1,75 @@
 ﻿@using EntityEquity.Components
-
+@using EntityEquity.Models
+@model HomeIndexModel
 @{
     ViewData["Title"] = "Home Page";
 }
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <p>Build properties, build equity, with Entity Equity.</p>
+    @if (!User.Identity.IsAuthenticated)
+    {
+            <span>Please register and/or login.</span>
+    }
+</div>
 
 @{
-    if (Context.Request.Cookies[".AspNetCore.Identity.Application"] == null)
+    
+    if (User.Identity.IsAuthenticated)
     {
-        <span>Please register and/or login.</span>
+        if (Model.Performances.Count == 0)
+        {
+            <div style="max-width: 400px;text-align:left; margin:auto; margin-top:30px;">
+                You don't have any properties setup. To get started:
+                <ul>
+                    <li>Setup an <a href="~/Inventory">inventory</a>
+                        <ul>
+                            <li>Add an inventory</li>
+                            <li>Add an item to an inventory</li>
+                        </ul>
+                    </li>
+                    <li>
+                        Setup a <a href="~/Property">property</a>
+                        <ul>
+                            <li>In some cases, a property is like a storefront. In other cases, an R&D venture.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        Create an <a href="~/Offerings">offering</a>
+                        <ul>
+                            <li>An offering is a presentation of an inventory item in a property.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        }
+        else
+        {
+            <div style="display:flex; flex-wrap:wrap">
+                @foreach (var performance in Model.Performances)
+                {
+                    <div class="tile">
+                        <div style="text-align:center; font-weight:bold">
+                            @performance.Property.Name (#@performance.Property.PropertyId)
+                        </div>
+                        <div>
+                            Total Number of Shares: @performance.Property.Shares
+                        </div>
+                        <div>
+                            Total Shares Owned: @performance.SharesOwned
+                        </div>
+                        <div>
+                            
+                        </div>
+                        <div>
+                            Sales in past week: $@performance.SalesInLastWeek
+                        </div>
+                    </div>
+                }
+            </div>
+        }
     }
 }
 
-</div>
+
  

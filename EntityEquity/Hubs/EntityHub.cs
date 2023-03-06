@@ -63,10 +63,10 @@ namespace EntityEquity.Hubs
         [Authorize]
         public List<Property> GetProperties()
         {
-            using (var context = _dbContextFactory.CreateDbContext())
+            using (var dbContext = _dbContextFactory.CreateDbContext())
             {
-                return (from p in context.Properties
-                        join pm in context.PropertyManagers!
+                return (from p in dbContext.Properties
+                        join pm in dbContext.PropertyManagers!
                            on p.PropertyId equals pm.Property.PropertyId
                         where pm.Role == PropertyManagerRoles.Administrator
                            && pm.UserId == _userManager.GetUserId(Context.User)
@@ -465,6 +465,7 @@ namespace EntityEquity.Hubs
         {
             decimal baseAmount = 0;
             decimal percentage = 0;
+            string userAccountId = String.Empty;
             if (paymentMethod == PaymentMethod.CreditCard)
             {
                 IConfigurationSection section = _configuration.GetSection("PlatformFee:CreditCard");
@@ -477,6 +478,8 @@ namespace EntityEquity.Hubs
                 baseAmount = section.GetValue<decimal>("Base");
                 percentage = section.GetValue<decimal>("Percentage") / 100;
             }
+            IConfigurationSection receivableSection = _configuration.GetSection("PlatformFee:AccountReceivable");
+            userAccountId = receivableSection.GetValue<string>("UserId");
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
                 var platformFees = await (from p in dbContext.Properties
@@ -488,8 +491,6 @@ namespace EntityEquity.Hubs
                                        on pom.Offering.OfferingId equals of.OfferingId
                                    join oi in dbContext.OrderItems
                                        on of.OfferingId equals oi.Offering.OfferingId
-                                   join ii in dbContext.InventoryItems
-                                       on oi.Offering.InventoryItem.InventoryItemId equals ii.InventoryItemId
                                    where oi.Order.OrderId == order.OrderId
                                    group new { p, u, of } by new { p.PropertyId, u.Id } into puf
                                    select new PlatformFee { PlatformId = puf.Key.PropertyId, 
@@ -507,7 +508,7 @@ namespace EntityEquity.Hubs
 
                     LedgerEntry entry = new()
                     {
-                        UserId = platformFee.UserId,
+                        UserId = userAccountId,
                         Amount = amount,
                         Description = description
                     };
@@ -569,7 +570,7 @@ namespace EntityEquity.Hubs
             {
                 foreach (var shareholder in shareholders)
                 {
-                    decimal payout = register.GetRemaining(shareholder.PropertyId) * (shareholder.Shares/shareholder.PropertyShares);
+                    decimal payout = register.GetRemaining(shareholder.PropertyId) * ((decimal)shareholder.Shares/shareholder.PropertyShares);
                     if (payout > 0)
                     { 
                         payout = Math.Round(payout, 2);
@@ -590,30 +591,34 @@ namespace EntityEquity.Hubs
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
                 var shares = await (from et in dbContext.EquityTransactions
-                            join p in dbContext.Properties
-                                 on et.Property.PropertyId equals p.PropertyId
-                            join pom in dbContext.PropertyOfferingMappings
-                                on p.PropertyId equals pom.Property.PropertyId
-                            join of in dbContext.Offerings
-                                on pom.Offering.OfferingId equals of.OfferingId
-                            join oi in dbContext.OrderItems
-                                on of.OfferingId equals oi.Offering.OfferingId
-                            where oi.Order.OrderId == order.OrderId
-                            group new { et, p } by new { p.PropertyId, PropertyName = p.Name, PropertyShares = p.Shares, et.BuyerUserId } into bet
-                            where (bet.Sum(e => e.et.Shares) - (from ets in dbContext.EquityTransactions
-                                                               where ets.Property.PropertyId == bet.Key.PropertyId
-                                                                  && ets.SellerUserId == bet.Key.BuyerUserId
-                                                               select ets.Shares).Sum()) > 0
-                            select new Shareholder
+                            where (from pom in dbContext.PropertyOfferingMappings
+                                           join of in dbContext.Offerings
+                                               on pom.Offering.OfferingId equals of.OfferingId
+                                           join oi in dbContext.OrderItems
+                                               on of.OfferingId equals oi.Offering.OfferingId
+                                           where oi.Order.OrderId == order.OrderId
+                                           select pom.Property.PropertyId).Contains(et.Property.PropertyId)
+                            group new { et } by new { et.Property.PropertyId, PropertyName = et.Property.Name, PropertyShares = et.Property.Shares, et.BuyerUserId } into bet
+                            where (bet.Sum(e => e.et.Shares) - 
+                                dbContext.EquityTransactions.Where(ets => ets.Property.PropertyId == bet.Key.PropertyId 
+                                    && ets.SellerUserId == bet.Key.BuyerUserId)
+                                .Select(ets => ets.Shares)
+                                .Sum()) > 0
+
+                            //(from ets in dbContext.EquityTransactions
+                            //                                   where ets.Property.PropertyId == bet.Key.PropertyId
+                            //                                      && ets.SellerUserId == bet.Key.BuyerUserId
+                            //                                   select ets.Shares).Sum()) > 0
+                                    select new Shareholder
                             {
                                 PropertyId = bet.Key.PropertyId,
                                 PropertyName = bet.Key.PropertyName,
                                 PropertyShares = bet.Key.PropertyShares,
                                 UserId = bet.Key.BuyerUserId,
-                                Shares = bet.Sum(e => e.et.Shares) - (from ets in dbContext.EquityTransactions
-                                                                      where ets.Property.PropertyId == bet.Key.PropertyId
-                                                                         && ets.SellerUserId == bet.Key.BuyerUserId
-                                                                      select ets.Shares).Sum()
+                                Shares = bet.Sum(e => e.et.Shares) - (from etsi in dbContext.EquityTransactions
+                                                                      where etsi.Property.PropertyId == bet.Key.PropertyId
+                                                                         && etsi.SellerUserId == bet.Key.BuyerUserId
+                                                                      select etsi.Shares).Sum()
                             }).ToListAsync();
                 return shares;
             }
