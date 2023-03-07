@@ -1,0 +1,14 @@
+﻿@page "/account/"
+@using EntityEquity.Components.Account
+@model EntityEquity.Areas.Account.Pages.OverviewModel
+@{
+    Layout = "_LayoutAccount";
+}
+<div>
+    Balance: $@Model.Balance
+</div>
+<div>
+    <button type="button" data-bs-toggle="modal" data-bs-target="#withdrawalModal">Withdrawal</button>
+</div>
+
+@(await Html.RenderComponentAsync(typeof(WithdrawalModal), RenderMode.ServerPrerendered, new { Cookie = Model.Cookie }))

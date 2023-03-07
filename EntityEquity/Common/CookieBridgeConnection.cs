@@ -7,19 +7,21 @@ namespace EntityEquity.Common
     public class CookieBridgeConnection
     {
         private IHttpClientFactory _httpClientFactory;
-        private NavigationManager _navigationManager { get; set; }
         private CookieBridge _cookieBridge { get; set; }
-        public CookieBridgeConnection(NavigationManager navigationManager, CookieBridge cookieBridge, IHttpClientFactory httpClientFactory)
+        private IConfiguration _configuration { get; set; }
+        public CookieBridgeConnection(CookieBridge cookieBridge, IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
-            _navigationManager = navigationManager;
             _cookieBridge = cookieBridge;
             _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
         public HubConnection GetHubConnection(string hubUrl, string cookie)
         {
             _cookieBridge.Value = cookie;
+            string baseAddress = _configuration.GetValue<string>("BaseAddress").TrimEnd('/');
+            string fullHubUrl = baseAddress + hubUrl;
             return new HubConnectionBuilder()
-            .WithUrl(_navigationManager.ToAbsoluteUri(hubUrl), options =>
+            .WithUrl(fullHubUrl, options =>
             {
                 options.Cookies = _cookieBridge.CookieContainer;
             })

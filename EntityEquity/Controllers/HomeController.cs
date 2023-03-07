@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using EntityEquity.Data.Models;
 
 namespace EntityEquity.Controllers
 {
@@ -35,21 +36,54 @@ namespace EntityEquity.Controllers
 
             using (var dbContext = _dbContextFactory.CreateDbContext())
             {
+                var shareholders = (from et in dbContext.EquityTransactions
+                                    where (from pom in dbContext.PropertyOfferingMappings
+                                           join of in dbContext.Offerings
+                                               on pom.Offering.OfferingId equals of.OfferingId
+                                           join oi in dbContext.OrderItems
+                                               on of.OfferingId equals oi.Offering.OfferingId
+                                           select pom.Property.PropertyId).Contains(et.Property.PropertyId)
+                                    group new { et } by new { et.Property.PropertyId, PropertyName = et.Property.Name, PropertyShares = et.Property.Shares, et.BuyerUserId } into bet
+                                    where (bet.Sum(e => e.et.Shares) -
+                                        dbContext.EquityTransactions.AsEnumerable().Where(ets => ets.Property.PropertyId == bet.Key.PropertyId
+                                            && ets.SellerUserId == bet.Key.BuyerUserId)
+                                        .Select(ets => ets.Shares)
+                                        .Sum()) > 0
 
-                var performanceIndicators = from p in dbContext.Properties
-                                            join oi in dbContext.OrderItems
-                                                on p.PropertyId equals oi.Property.PropertyId into oia
-                                                from oid in oia.DefaultIfEmpty()
-                                            join i in dbContext.Invoices
-                                                on oid.Order.OrderId equals i.Order.OrderId into ia
-                                                from iad in ia.DefaultIfEmpty()
-                                            join ii in dbContext.InvoiceItems
-                                                on iad.InvoiceId equals ii.Invoice.InvoiceId into iia
-                                                from iiad in iia.DefaultIfEmpty()
-                                            where   iad == null
-                                                ||  iad.ProcessedAt > DateTime.Now.AddDays(-7)
+                                    select new Shareholder
+                                    {
+                                        PropertyId = bet.Key.PropertyId,
+                                        PropertyName = bet.Key.PropertyName,
+                                        PropertyShares = bet.Key.PropertyShares,
+                                        UserId = bet.Key.BuyerUserId,
+                                        Shares = bet.Sum(e => e.et.Shares) - (from etsi in dbContext.EquityTransactions
+                                                                              where etsi.Property.PropertyId == bet.Key.PropertyId
+                                                                              && etsi.SellerUserId == bet.Key.BuyerUserId
+                                                                              select etsi.Shares).Sum()
+                                    }).ToList();
+
+                var performanceIndicators = (from p in dbContext.Properties.AsEnumerable()
+                                             join pm in dbContext.PropertyManagers.Include(pm => pm.Property)
+                                                on p.PropertyId equals pm.Property.PropertyId
+                                             join oi in dbContext.OrderItems.Include(oi => oi.Property).Include(oi => oi.Order)
+                                                 on p.PropertyId equals oi.Property.PropertyId into oia
+                                             from oid in oia.DefaultIfEmpty()
+                                             join i in dbContext.Invoices.Include(i => i.Order)
+                                                 on oid?.Order.OrderId equals i.Order.OrderId into ia
+                                             from iad in ia.DefaultIfEmpty()
+                                             join ii in dbContext.InvoiceItems
+                                                 on iad?.InvoiceId equals ii.Invoice.InvoiceId into iia
+                                             from iiad in iia.DefaultIfEmpty()
+                                             where (iad == null
+                                                 || iad.ProcessedAt > DateTime.Now.AddDays(-7))
+                                                 && (shareholders.Where(sh => sh.PropertyId == p.PropertyId
+                                                     && sh.UserId == _userManager.GetUserId(User)).Any()
+                                                 || p.OwnerUserId == _userManager.GetUserId(User)
+                                                 || (pm.UserId == _userManager.GetUserId(User) 
+                                                    && pm.Role == PropertyManagerRoles.Administrator))
+
                                             group new { p, iiad } by new { p.PropertyId } into pr
-                                            select new { pr.Key.PropertyId, WeeklySalesAmount = pr.Sum(s => s.iiad.Price) };
+                                            select new { pr.Key.PropertyId, WeeklySalesAmount = pr.Sum(s => s.iiad != null ? s.iiad.Price : 0) }).ToList();
 
                 foreach (var performanceIndicator in performanceIndicators)
                 {

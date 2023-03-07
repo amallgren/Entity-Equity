@@ -44,7 +44,7 @@ namespace EntityEquity.Common
                 Item = apiTransactionKey
             };
         }
-        public async Task<PaymentResult> RunCheck(eCheckPaymentParameters parameters)
+        public async Task<PaymentResult> RunECheck(eCheckPaymentParameters parameters)
         {
             try
             {

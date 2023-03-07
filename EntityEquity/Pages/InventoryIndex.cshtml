@@ -4,8 +4,6 @@
 @using Microsoft.AspNetCore.Identity
 @{
     Layout = "_Layout";
-}
-@{
     var cookie = HttpContext.Request.Cookies[".AspNetCore.Identity.Application"];
 }
 @(await Html.RenderComponentAsync(typeof(InventoryPanel), RenderMode.ServerPrerendered, new { Cookie = cookie }))

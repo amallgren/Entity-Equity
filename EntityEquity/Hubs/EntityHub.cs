@@ -6,6 +6,7 @@ using EntityEquity.Data;
 using EntityEquity.Data.CommonDataSets;
 using EntityEquity.Data.Models;
 using EntityEquity.Models;
+using EntityEquity.Models.Mapping;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -407,7 +408,7 @@ namespace EntityEquity.Hubs
                 Payment payment = new Payment(_configuration, _dbContextFactory, _userManager, Context.User);
                 PaymentResult result = new();
 
-                result = await payment.RunCheck((eCheckPaymentParameters)parameters);
+                result = await payment.RunECheck((eCheckPaymentParameters)parameters);
 
                 if (result.Successful)
                 {
@@ -600,16 +601,12 @@ namespace EntityEquity.Hubs
                                            select pom.Property.PropertyId).Contains(et.Property.PropertyId)
                             group new { et } by new { et.Property.PropertyId, PropertyName = et.Property.Name, PropertyShares = et.Property.Shares, et.BuyerUserId } into bet
                             where (bet.Sum(e => e.et.Shares) - 
-                                dbContext.EquityTransactions.Where(ets => ets.Property.PropertyId == bet.Key.PropertyId 
+                                dbContext.EquityTransactions.AsEnumerable().Where(ets => ets.Property.PropertyId == bet.Key.PropertyId 
                                     && ets.SellerUserId == bet.Key.BuyerUserId)
                                 .Select(ets => ets.Shares)
                                 .Sum()) > 0
 
-                            //(from ets in dbContext.EquityTransactions
-                            //                                   where ets.Property.PropertyId == bet.Key.PropertyId
-                            //                                      && ets.SellerUserId == bet.Key.BuyerUserId
-                            //                                   select ets.Shares).Sum()) > 0
-                                    select new Shareholder
+                            select new Shareholder
                             {
                                 PropertyId = bet.Key.PropertyId,
                                 PropertyName = bet.Key.PropertyName,
@@ -751,5 +748,61 @@ namespace EntityEquity.Hubs
                 await dbContext.SaveChangesAsync();
             }
         }
+        [Authorize]
+        public async Task<Result> Withdrawal(WithdrawalModel model)
+        {
+            Account accountDataset = new Account(_dbContextFactory);
+            var balance = accountDataset.GetBalance(_userManager.GetUserId(Context.User));
+            if (balance < model.Amount)
+            {
+                return new Result
+                {
+                    Successful = false,
+                    Message = "Account balance is less than the withdrawal amount."
+                };
+            }
+
+            eCheckPaymentParameters parameters = PaymentForm.MapECheck(model);
+            Payment payment = new Payment(_configuration, _dbContextFactory, _userManager, Context.User);
+            PaymentResult result = new();
+
+            result = await payment.RunECheck((eCheckPaymentParameters)parameters);
+
+            if (result.Successful)
+            {
+                using (var dbContext = _dbContextFactory.CreateDbContext())
+                {
+
+                    var accountNumber = parameters.BankAccount.accountNumber;
+                    var description = $"eCheck Withdrawal - {accountNumber.Substring(accountNumber.Length-4, 4)}";
+                    LedgerEntry entry = new()
+                    {
+                        UserId = _userManager.GetUserId(Context.User),
+                        Amount = model.Amount * -1,
+                        Description = description
+                    };
+                    dbContext.LedgerEntries.Add(entry);
+                    await dbContext.SaveChangesAsync();
+
+                    return new Result
+                    {
+                        Successful = true
+                    };
+                }
+            }
+            else
+            {
+                return new Result()
+                {
+                    Successful = false,
+                    Message = "Authorization failed."
+                };
+            }
+        }
+    }
+    public class Result
+    {
+        public bool Successful { get; set; }
+        public string? Message { get; set; }
     }
 }

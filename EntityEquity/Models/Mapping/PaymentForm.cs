@@ -35,7 +35,7 @@ namespace EntityEquity.Models.Mapping
             {
                 routingNumber = model.RoutingNumber.ToString(),
                 accountNumber = model.AccountNumber.ToString(),
-                nameOnAccount = model.Name,
+                nameOnAccount = model.NameOnAccount,
                 bankName = model.BankName,
                 accountType = model.AccountType,
                 echeckType = echeckTypeEnum.WEB
@@ -46,6 +46,10 @@ namespace EntityEquity.Models.Mapping
                 BankAccount = bankAccount,
                 Amount = total
             };
+        }
+        public static eCheckPaymentParameters MapECheck(WithdrawalModel model)
+        {
+            return MapECheck(model, model.Amount);
         }
     }
 }

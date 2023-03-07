@@ -1,0 +1,106 @@
+﻿@using AuthorizeNet.Api.Contracts.V1
+@using EntityEquity.Common
+@using EntityEquity.Data
+@using EntityEquity.Extensions
+@using EntityEquity.Hubs
+@using EntityEquity.Models
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IJSRuntime JS
+@inject IHubContext<EntityHub> HubContext
+@inject CookieBridgeConnection CookieBridgeConnection
+
+<EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
+    <DataAnnotationsValidator />
+    
+    <div class="modal fade" id="withdrawalModal" tabindex="-1" aria-labelledby="withdrawalModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="withdrawalModalLabel">Withdrawal</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+                <div class="row">
+                    <Microsoft.AspNetCore.Components.Forms.ValidationSummary />
+                </div>
+                <div style="color:red;">
+                    @error
+                </div>
+                <div class="row">
+                    <label for="withdrawalAmount" class="col-md-4">Amount</label>
+                    <input id="withdrawalAmount" class="col-md-8" type="text" @bind-value="model.Amount" />
+                </div>
+                <div class="row">
+                    <label for="withdrawalAccountType" class="col-md-4">Account Type</label>
+                    <select id="paymentInformationTypeOfAccountText" class="col-md-8" @bind="model.AccountType">
+                        <option value="@bankAccountTypeEnum.checking.ToString()">
+                            Checking
+                        </option>
+                        <option value="@bankAccountTypeEnum.savings.ToString()">
+                            Savings
+                        </option>
+                        <option value="@bankAccountTypeEnum.businessChecking.ToString()">
+                            Business Checking
+                        </option>
+                    </select>
+                </div>
+                <div class="row">
+                    <label for="withdrawalRoutingNumber" class="col-md-4">Routing Number</label>
+                    <input id="withdrawalRoutingNumber" class="col-md-8" type="text" @bind-value="model.RoutingNumber" />
+                </div>
+                <div class="row">
+                    <label for="withdrawalAccountNumber" class="col-md-4">Account Number</label>
+                    <input id="withdrawalAccountNumber" class="col-md-8" type="text" @bind-value="model.AccountNumber" />
+                </div>
+                <div class="row">
+                    <label for="withdrawalNameOnAccount" class="col-md-4">Name on Account</label>
+                    <input id="withdrawalNameOnAccount" class="col-md-8" type="text" @bind-value="model.NameOnAccount" />
+                </div>
+                <div class="row">
+                    <label for="withdrawalBankName" class="col-md-4">Bank Name</label>
+                    <input id="withdrawalBankName" class="col-md-8" type="text" @bind-value="model.BankName" />
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</EditForm>
+@code {
+    [Parameter]
+    public string? Cookie { get; set; }
+    private HubConnection? hubConnection;
+    private WithdrawalModel model = new();
+    private string error;
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
+        await hubConnection.StartAsync();
+
+    }
+    private async void ValidSubmit()
+    {
+        if (hubConnection is not null)
+        {
+            Result result = await hubConnection.InvokeAsync<Result>("Withdrawal", model);
+            if (result.Successful)
+            {
+                HubContext.Clients.All.SendAsync("UpdateBalance");
+                await JS.InvokeVoidAsync("HideModal", new object[1] { "#withdrawalModal" });
+            }
+            else
+            {
+                error = result.Message;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+    private void Invalid()
+    {
+        
+    }
+}
