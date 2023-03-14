@@ -1,3 +1,7 @@
+:root {
+    --dark-blue: #192E47;
+    --mid-blue: #314F76;
+}
 html {
   font-size: 14px;
 }
@@ -33,21 +37,54 @@ body {
     text-align: center;
     width: 100px;
 }
+.table-blue {
+    color:white;
+}
+.table-blue, th, td {
+    border: 1px solid grey;
+    padding: 3px 7px;
+}
+.table-blue tr:nth-child(odd) {
+    background-color: var(--dark-blue);
+}
+.table-blue tr:nth-child(even) {
+    background-color: var(--mid-blue);
+}
+.flex-tile-band {
+    display: flex;
+    flex-wrap: wrap;
+    background-color: var(--dark-blue);
+}
 
 .tile {
     border: 1px solid grey;
-    border-radius: 10px;
     padding: 4px 7px 7px 7px;
     margin: 8px;
-    background-image: linear-gradient(to bottom right, Azure, AliceBlue);
+    background-color: var(--mid-blue);
+    color: white;
+    height: fit-content;
 }
-
-.property-tile .name {
-    font-size: 1rem;
-    font-weight: bold;
+.tile-title {
+    text-decoration:underline;
+    text-align:center;
+}
+.navbar-brand {
+    background-color: var(--mid-blue);
+    border: solid 1px grey;
+    color: white !important;
+}
+.site-title {
+    padding: 0px 10px;
+    font-size: 1.5rem
+}
+.nav-link {
+    background-color: var(--mid-blue);
+    color: white !important;
+    border: solid 1px grey;
+    margin: 0px 5px;
 }
 .hide {
-    display:none;
+    display: none;
 }
 .offering-panel-offering {
     margin-right: 15px;
@@ -81,13 +118,15 @@ body {
 .flex-wrap-page {
     display: flex;
     flex-wrap: wrap;
+    background-color:var(--dark-blue)
 }
 .action-panel {
     width: 100%;
     max-width: 325px;
-    border: solid 2px black;
+    border: solid 1px grey;
     padding: 0px 10px 10px 10px;
-    border-radius: 10px;
+    background-color: var(--mid-blue);
+    color: white;
 }
 .action-panel-grid {
     display: grid;

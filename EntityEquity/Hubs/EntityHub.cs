@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using EntityEquity.Common.Payment;
+using EntityEquity.Data.Models.Deserialization.USBank;
 
 namespace EntityEquity.Hubs
 {
@@ -19,13 +21,16 @@ namespace EntityEquity.Hubs
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private UserManager<IdentityUser> _userManager;
         private IConfiguration _configuration;
+        private AchTransaction _achTransaction;
         public EntityHub(IDbContextFactory<ApplicationDbContext> dbContextFactor, 
             UserManager<IdentityUser> userManager, 
-            IConfiguration configuration)
+            IConfiguration configuration,
+            AchTransaction achTransaction)
         {
             _dbContextFactory = dbContextFactor;
             _userManager = userManager;
             _configuration = configuration;
+            _achTransaction = achTransaction;
         }
         [Authorize]
         public async Task AddProperty(PropertyModel model)
@@ -151,7 +156,8 @@ namespace EntityEquity.Hubs
                             on ii.Inventory.InventoryId equals im.Inventory.InventoryId
                         where im.UserId == _userManager.GetUserId(Context.User)
                             && im.Role == InventoryManagerRoles.Administrator
-                            && selectedInventories.Contains(ii.Inventory.InventoryId) 
+                            && (selectedInventories.Count() == 0 ||
+                                selectedInventories.Contains(ii.Inventory.InventoryId)) 
                         select ii).ToList();
             }
         }
@@ -358,10 +364,10 @@ namespace EntityEquity.Hubs
                                        where o.UserId == _userManager.GetUserId(Context.User)
                                                && o.State == OrderState.Incomplete
                                        select o).FirstOrDefaultAsync();
-                    Payment payment = new Payment(_configuration, _dbContextFactory, _userManager, Context.User);
+                    MerchantServices merchantServices = new MerchantServices(_configuration, _dbContextFactory, _userManager, Context.User);
                     PaymentResult result = new();
 
-                    result = await payment.RunCard(parameters);
+                    result = await merchantServices.RunCard(parameters);
                     var billingAddress = await SaveBillingAddress(parameters);
                     order.BillingAddress = billingAddress;
                     await dbContext.SaveChangesAsync();
@@ -405,10 +411,10 @@ namespace EntityEquity.Hubs
                                    where o.UserId == _userManager.GetUserId(Context.User)
                                            && o.State == OrderState.Incomplete
                                    select o).FirstOrDefaultAsync();
-                Payment payment = new Payment(_configuration, _dbContextFactory, _userManager, Context.User);
+                MerchantServices merchantServices = new MerchantServices(_configuration, _dbContextFactory, _userManager, Context.User);
                 PaymentResult result = new();
 
-                result = await payment.RunECheck((eCheckPaymentParameters)parameters);
+                result = await merchantServices.DepositViaECheck((eCheckPaymentParameters)parameters);
 
                 if (result.Successful)
                 {
@@ -749,36 +755,66 @@ namespace EntityEquity.Hubs
             }
         }
         [Authorize]
-        public async Task<Result> Withdrawal(WithdrawalModel model)
+        public async Task<Result> Withdrawal(recipientDetails details, decimal amount)
         {
-            Account accountDataset = new Account(_dbContextFactory);
-            var balance = accountDataset.GetBalance(_userManager.GetUserId(Context.User));
-            if (balance < model.Amount)
+            try
             {
-                return new Result
+                Account accountDataset = new Account(_dbContextFactory);
+                var balance = accountDataset.GetBalance(_userManager.GetUserId(Context.User));
+                if (balance < amount)
                 {
-                    Successful = false,
-                    Message = "Account balance is less than the withdrawal amount."
-                };
-            }
+                    return new Result
+                    {
+                        Successful = false,
+                        Message = "Account balance is less than the withdrawal amount."
+                    };
+                }
+                using (var dbContext = _dbContextFactory.CreateDbContext())
+                {
+                    var accountNumber = details.RecipientAccountNumber;
+                    var description = $"ACH Withdrawal - {accountNumber.Substring(accountNumber.Length - 4, 4)}";
+                    LedgerEntry entry = new()
+                    {
+                        UserId = _userManager.GetUserId(Context.User),
+                        Amount = amount * -1,
+                        Description = description
+                    };
+                    dbContext.LedgerEntries.Add(entry);
+                    await dbContext.SaveChangesAsync();
 
-            eCheckPaymentParameters parameters = PaymentForm.MapECheck(model);
-            Payment payment = new Payment(_configuration, _dbContextFactory, _userManager, Context.User);
+                    var response = await _achTransaction.SubmitPayment(details, amount, entry.LedgerEntryId);
+
+                    return new Result
+                    {
+                        Successful = true
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                string breakpoint = "";
+            }
+            return new Result() { Successful = false, Message = "Unknown error." };
+        }
+        [Authorize]
+        public async Task<Result> Deposit(DepositModel model)
+        {
+            eCheckPaymentParameters parameters = PaymentForms.MapECheck(model);
+            MerchantServices merchantServices = new MerchantServices(_configuration, _dbContextFactory, _userManager, Context.User);
             PaymentResult result = new();
 
-            result = await payment.RunECheck((eCheckPaymentParameters)parameters);
+            result = await merchantServices.DepositViaECheck((eCheckPaymentParameters)parameters);
 
             if (result.Successful)
             {
                 using (var dbContext = _dbContextFactory.CreateDbContext())
                 {
-
                     var accountNumber = parameters.BankAccount.accountNumber;
-                    var description = $"eCheck Withdrawal - {accountNumber.Substring(accountNumber.Length-4, 4)}";
+                    var description = $"eCheck Deposit - {accountNumber.Substring(accountNumber.Length - 4, 4)}";
                     LedgerEntry entry = new()
                     {
                         UserId = _userManager.GetUserId(Context.User),
-                        Amount = model.Amount * -1,
+                        Amount = model.Amount,
                         Description = description
                     };
                     dbContext.LedgerEntries.Add(entry);
@@ -799,10 +835,5 @@ namespace EntityEquity.Hubs
                 };
             }
         }
-    }
-    public class Result
-    {
-        public bool Successful { get; set; }
-        public string? Message { get; set; }
     }
 }

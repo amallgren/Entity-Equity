@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using EntityEquity.Common;
+using EntityEquity.Common.Payment;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +36,7 @@ builder.Services.AddHttpClient("DefaultHttpClient", client => client.BaseAddress
 
 builder.Services.AddTransient<CookieBridge>();
 builder.Services.AddTransient<CookieBridgeConnection>();
+builder.Services.AddSingleton<EntityEquity.Common.Payment.AchTransaction>();
 
 builder.Services.AddSignalR().AddNewtonsoftJsonProtocol();
 

@@ -1,8 +1,11 @@
 ﻿using AuthorizeNet.Api.Contracts.V1;
 using EntityEquity.Common;
+using EntityEquity.Common.Payment;
+using EntityEquity.Data.Models.Deserialization.USBank;
+
 namespace EntityEquity.Models.Mapping
 {
-    public static class PaymentForm
+    public static class PaymentForms
     {
         public static CreditCardPaymentParameters MapCreditCard(CreditCardPaymentFormModel model, List<lineItemType> lineItems, decimal total)
         {
@@ -51,5 +54,36 @@ namespace EntityEquity.Models.Mapping
         {
             return MapECheck(model, model.Amount);
         }
+        public static eCheckPaymentParameters MapECheck(DepositModel model)
+        {
+            return MapECheck(model, model.Amount);
+        }
+        //public static transaction MapAchPament(AchPaymentFormModel model, int orderNumber)
+        //{
+        //    recipientDetails recipientDetails = new()
+        //    {
+        //        RecipientType = model.EntityType,
+        //        RecipientName = model.NameOnAccount,
+        //        RecipientAccountType = model.AccountType,
+        //        RecipientAccountNumber = model.AccountNumber,
+        //        RecipientRoutingNumber = model.RoutingNumber,
+        //        RecipientIdentificationNumber = orderNumber.ToString()
+        //    };
+        //    rransactionDetails transactionDetails = new()
+        //    {
+        //        TransactionType = "Payment",
+        //        IsWebAuthorized = true,
+        //        IsPhoneAuthorized = false,
+        //        EffectiveDate = DateTime.Now.ToUniversalTime().ToString("yyyy-MM-dd HH:59:45Z"),
+        //        Amount = model.Amount.ToString(),
+        //        IsTestTransaction = false
+        //    };
+        //    transaction transaction = new()
+        //    {
+        //        RecipientDetails = recipientDetails,
+        //        TransactionDetails = transactionDetails
+        //    };
+        //    return transaction;
+        //}
     }
 }

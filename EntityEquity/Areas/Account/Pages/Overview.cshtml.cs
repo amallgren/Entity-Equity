@@ -7,6 +7,8 @@ using EntityEquity.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using EntityEquity.Common;
+using Microsoft.Extensions.Primitives;
+using System.ComponentModel.DataAnnotations;
 
 namespace EntityEquity.Areas.Account.Pages
 {
@@ -18,7 +20,13 @@ namespace EntityEquity.Areas.Account.Pages
         private CookieBridgeConnection _cookieBridge;
         [BindProperty]
         public decimal Balance { get; set; }
+        [BindProperty]
+        public List<LedgerEntry> LedgerEntries { get; set; }
         public string Cookie;
+        [BindProperty, DataType(DataType.Date)]
+        public DateTime? FilterStartDate { get; set; }
+        [BindProperty, DataType(DataType.Date)]
+        public DateTime? FilterEndDate { get; set; }
         public OverviewModel(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<IdentityUser> userManager, CookieBridgeConnection cookieBridge)
         {
             _dbContextFactory = dbContextFactory;
@@ -32,9 +40,24 @@ namespace EntityEquity.Areas.Account.Pages
             hubConnection.On("UpdateBalance", () =>
             {
                 Balance = GetBalance();
-                
+                LedgerEntries = GetLedgerEntries();
             });
             Balance = GetBalance();
+            LedgerEntries = GetLedgerEntries();
+        }
+        public void OnPost()
+        {
+            DateTime? startDate = null;
+            DateTime? stopDate = null;
+            Cookie = HttpContext.Request.Cookies[".AspNetCore.Identity.Application"];
+            StringValues startDateValue = Request.Form["FilterStartDate"];
+            if (!StringValues.IsNullOrEmpty(startDateValue))
+                startDate = DateTime.Parse(startDateValue.FirstOrDefault());
+            StringValues stopDateValue = Request.Form["FilterStopDate"];
+            if (!StringValues.IsNullOrEmpty(stopDateValue))
+                stopDate = DateTime.Parse(stopDateValue.FirstOrDefault());
+            Balance = GetBalance();
+            LedgerEntries = GetLedgerEntries(startDate, stopDate);
         }
         public decimal GetBalance()
         {
@@ -43,6 +66,28 @@ namespace EntityEquity.Areas.Account.Pages
                 return (from l in dbContext.LedgerEntries
                         where l.UserId == _userManager.GetUserId(User)
                         select l.Amount).Sum();
+            }
+        }
+        public List<LedgerEntry> GetLedgerEntries(DateTime? filterStartDate = null, DateTime? filterStopDate = null)
+        {
+            if (filterStartDate is null)
+            {
+                filterStartDate = DateTime.UtcNow.AddDays(-7).Date;
+            }
+            if (filterStopDate is null)
+            {
+                filterStopDate = DateTime.UtcNow.AddDays(1).Date;
+            }
+            List<LedgerEntry> entries = new List<LedgerEntry>();
+            using (var dbContext = _dbContextFactory.CreateDbContext())
+            {
+                FilterStartDate = filterStartDate.Value;
+                FilterEndDate = filterStopDate.Value;
+
+                return (from l in dbContext.LedgerEntries
+                        where l.UserId == _userManager.GetUserId(User)
+                            && (l.OccurredAt > filterStartDate && l.OccurredAt < filterStopDate)
+                        select l).ToList();
             }
         }
     }

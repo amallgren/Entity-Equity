@@ -4,6 +4,7 @@
 @using EntityEquity.Data.Models;
 @using EntityEquity.Extensions
 @using EntityEquity.Hubs
+@using EntityEquity.Components.Shared
 @using EntityEquity.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json;
@@ -14,6 +15,9 @@
 @inject CookieBridgeConnection CookieBridgeConnection
 @inject IHttpClientFactory HttpClientFactory
 @implements IAsyncDisposable
+
+<PropertyTabs ActiveTab="PropertyTabs.PropertyTabType.Offerings"></PropertyTabs>
+
 <div class="flex-wrap-page">
     <div class="action-panel">
         <h2 class="panel-section-title">Filters/Action Targets</h2>
@@ -45,7 +49,7 @@
             {
                 if (@offeringsWithProperties.Offering is not null && @offeringsWithProperties.Property is not null)
                 {
-                    <div class="offering-panel-offering">
+                    <div class="offering-panel-offering tile">
                         <div class="offering-panel-image-container">
                             @if (offeringsWithProperties.Photos is not null && offeringsWithProperties.Photos.Count > 0)
                             {
@@ -56,14 +60,20 @@
                                 <div class="no-image">No Image</div>
                             }
                         </div>
-                        <div>
-                            <span>Inventory Item: </span><span>@offeringsWithProperties.Offering.InventoryItem.Name</span>
-                        </div>
-                        <div>
-                            <span>Property: </span><span>@offeringsWithProperties.Property.Name</span>
-                        </div>
-                        <div>
+                        <div class="tile-title">
                             @offeringsWithProperties.Offering.Name
+                        </div>
+                        <div>
+                            Inventory Item: @offeringsWithProperties.Offering.InventoryItem.Name
+                        </div>
+                        <div>
+                            Property: @offeringsWithProperties.Property.Name
+                        </div>
+                        <div>
+                            Cost: $@offeringsWithProperties.Offering.InventoryItem.Cost
+                        </div>
+                        <div>
+                            Price: $@offeringsWithProperties.Offering.Price
                         </div>
                     </div>
                 }

@@ -1,4 +1,5 @@
 ﻿using EntityEquity.Common;
+using EntityEquity.Common.Payment;
 using EntityEquity.Data;
 namespace EntityEquity.Models
 {

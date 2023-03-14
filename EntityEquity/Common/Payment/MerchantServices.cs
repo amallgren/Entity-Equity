@@ -10,16 +10,19 @@ using Microsoft.EntityFrameworkCore;
 using EntityEquity.Data;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
+using EntityEquity.Data.Models.Deserialization;
+using EntityEquity.Data.Models.Deserialization.USBank;
+using Newtonsoft.Json;
 
-namespace EntityEquity.Common
+namespace EntityEquity.Common.Payment
 {
-    public class Payment
+    public class MerchantServices
     {
         private IConfiguration _configuration;
         private IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private UserManager<IdentityUser> _userManager;
         private ClaimsPrincipal _user;
-        public Payment(IConfiguration configuration, 
+        public MerchantServices(IConfiguration configuration, 
             IDbContextFactory<ApplicationDbContext> dbContextFactory, 
             UserManager<IdentityUser> userManager,
             ClaimsPrincipal user)
@@ -44,7 +47,7 @@ namespace EntityEquity.Common
                 Item = apiTransactionKey
             };
         }
-        public async Task<PaymentResult> RunECheck(eCheckPaymentParameters parameters)
+        public async Task<PaymentResult> DepositViaECheck(eCheckPaymentParameters parameters)
         {
             try
             {
@@ -53,6 +56,26 @@ namespace EntityEquity.Common
                 var transactionRequest = new transactionRequestType
                 {
                     transactionType = transactionTypeEnum.authCaptureTransaction.ToString(),
+                    payment = paymentType,
+                    amount = parameters.Amount
+                };
+                return await ProcessPayment(transactionRequest);
+            }
+            catch(Exception ex)
+            {
+                
+            }
+            return null;
+        }
+        public async Task<PaymentResult> WithdrawalViaECheck(eCheckPaymentParameters parameters)
+        {
+            try
+            {
+                SetEnvironmentAndMerchant();
+                var paymentType = new paymentType { Item = parameters.BankAccount };
+                var transactionRequest = new transactionRequestType
+                {
+                    transactionType = transactionTypeEnum.refundTransaction.ToString(),
                     payment = paymentType,
                     amount = parameters.Amount
                 };
@@ -255,4 +278,5 @@ namespace EntityEquity.Common
         public decimal Amount;
         public decimal Deductions;
     }
+
 }

@@ -9,6 +9,10 @@ function HideModal(selector) {
 function ShowModal(selector) {
     $(selector).modal('show');
 }
+function ShowInformationModal(content) {
+    $('#informationModal .modal-body').html(content);
+    $('#informationModal').modal('show');
+}
 function ApplyDataTable(selector) {
     $(selector).DataTable();
 }

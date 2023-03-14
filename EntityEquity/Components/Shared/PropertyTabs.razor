@@ -1,0 +1,45 @@
+﻿@inject NavigationManager nav
+<style>
+    .tabContainer {
+        color:white;
+    }
+    .tabContainer div {
+        background-color: var(--dark-blue);
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        padding: 5px 10px;
+        border: solid 1px grey;
+        cursor: pointer;
+    }
+    .tabContainer div.active {
+        background-color: var(--mid-blue);
+    }
+</style>
+
+<div class="tabContainer" style="display:flex">
+    @foreach(var tab in tabs)
+    {
+        <div class="@tab.CssClass" @onclick="() => nav.NavigateTo(tab.Link, true)">
+            @tab.Content
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public PropertyTabType ActiveTab { get; set; }
+    public class Tab
+    {
+        public string Content { get; set; }
+        public string Link { get; set; }
+        public string CssClass { get; set; }
+    }
+    List<Tab> tabs = new();
+    public enum PropertyTabType { Property, Offerings, Inventory };
+    protected override void OnInitialized()
+    {
+        tabs.Add(new() { Content = "Properties", Link = "/Property", CssClass = ActiveTab == PropertyTabType.Property ? "active" : "" });
+        tabs.Add(new() { Content = "Offerings", Link = "/Offering", CssClass = ActiveTab == PropertyTabType.Offerings ? "active" : "" });
+        tabs.Add(new() { Content = "Inventory", Link = "/Inventory", CssClass = ActiveTab == PropertyTabType.Inventory ? "active" : "" });
+    }
+}

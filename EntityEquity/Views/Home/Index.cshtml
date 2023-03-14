@@ -4,15 +4,14 @@
 @{
     ViewData["Title"] = "Home Page";
 }
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
+<div class="text-center" style="margin: 15px 0px 35px; 0px;">
+    <h2 class="display-4">Welcome</h2>
     <p>Build properties, build equity, with Entity Equity.</p>
     @if (!User.Identity.IsAuthenticated)
     {
             <span>Please register and/or login.</span>
     }
 </div>
-
 @{
     
     if (User.Identity.IsAuthenticated)
@@ -45,15 +44,17 @@
         }
         else
         {
-            <div style="display:flex; flex-wrap:wrap">
+            <h2 class="text-center" style="background-color:var(--dark-blue); color:white;font-weight: normal;margin-bottom:30px;padding: 10px 0px 15px 0px;">Properties (At a Glance)</h2>
+
+            <div class="flex-tile-band">
                 @foreach (var performance in Model.Performances)
                 {
                     <div class="tile">
-                        <div style="text-align:center; font-weight:bold">
+                        <div class="tile-title">
                             @performance.Property.Name (#@performance.Property.PropertyId)
                         </div>
                         <div>
-                            Total Number of Shares: @performance.Property.Shares
+                            Total # of Shares: @performance.Property.Shares
                         </div>
                         <div>
                             Total Shares Owned: @performance.SharesOwned

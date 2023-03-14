@@ -1,5 +1,6 @@
 ﻿@using AuthorizeNet.Api.Contracts.V1;
 @using EntityEquity.Common
+@using EntityEquity.Common.Payment
 @using EntityEquity.Data
 @using EntityEquity.Hubs
 @using EntityEquity.Models
@@ -157,7 +158,7 @@ else if (paymentMethod == PaymentMethod.eCheck)
             lineItems = await hubConnection.InvokeAsync<List<lineItemType>>("GetLineItems");
         }
         var total = lineItems.Sum<lineItemType>(i => (i.unitPrice * i.quantity));
-        CreditCardPaymentParameters parameters = PaymentForm.MapCreditCard(ccModel,lineItems, total);
+        CreditCardPaymentParameters parameters = PaymentForms.MapCreditCard(ccModel,lineItems, total);
         if (hubConnection is not null)
         {
             var finalizeOrderResult = await hubConnection.InvokeAsync<FinalizeOrderReturnModel>("FinalizeCreditCardOrder", parameters);

@@ -1,6 +1,8 @@
 ﻿@using AuthorizeNet.Api.Contracts.V1
 @using EntityEquity.Common
+@using EntityEquity.Common.Payment
 @using EntityEquity.Data
+@using EntityEquity.Data.Models.Deserialization.USBank
 @using EntityEquity.Extensions
 @using EntityEquity.Hubs
 @using EntityEquity.Models
@@ -9,7 +11,8 @@
 @inject IJSRuntime JS
 @inject IHubContext<EntityHub> HubContext
 @inject CookieBridgeConnection CookieBridgeConnection
-
+@inject IConfiguration configuration
+@inject AchTransaction achTransation
 <EditForm OnValidSubmit="ValidSubmit" OnInvalidSubmit="Invalid" Model="@model">
     <DataAnnotationsValidator />
     
@@ -28,38 +31,38 @@
                     @error
                 </div>
                 <div class="row">
-                    <label for="withdrawalAmount" class="col-md-4">Amount</label>
-                    <input id="withdrawalAmount" class="col-md-8" type="text" @bind-value="model.Amount" />
-                </div>
-                <div class="row">
-                    <label for="withdrawalAccountType" class="col-md-4">Account Type</label>
-                    <select id="paymentInformationTypeOfAccountText" class="col-md-8" @bind="model.AccountType">
-                        <option value="@bankAccountTypeEnum.checking.ToString()">
-                            Checking
-                        </option>
-                        <option value="@bankAccountTypeEnum.savings.ToString()">
-                            Savings
-                        </option>
-                        <option value="@bankAccountTypeEnum.businessChecking.ToString()">
-                            Business Checking
-                        </option>
+                    <label for="withdrawalEntityType" class="col-md-4">Entity Type</label>
+                    <select id="withdrawalEntityType" class="col-md-8" @bind="model.EntityType">
+                        <option value="Individual">Individual</option>
+                        <option value="Business">Business</option>
                     </select>
-                </div>
-                <div class="row">
-                    <label for="withdrawalRoutingNumber" class="col-md-4">Routing Number</label>
-                    <input id="withdrawalRoutingNumber" class="col-md-8" type="text" @bind-value="model.RoutingNumber" />
-                </div>
-                <div class="row">
-                    <label for="withdrawalAccountNumber" class="col-md-4">Account Number</label>
-                    <input id="withdrawalAccountNumber" class="col-md-8" type="text" @bind-value="model.AccountNumber" />
                 </div>
                 <div class="row">
                     <label for="withdrawalNameOnAccount" class="col-md-4">Name on Account</label>
                     <input id="withdrawalNameOnAccount" class="col-md-8" type="text" @bind-value="model.NameOnAccount" />
                 </div>
                 <div class="row">
-                    <label for="withdrawalBankName" class="col-md-4">Bank Name</label>
-                    <input id="withdrawalBankName" class="col-md-8" type="text" @bind-value="model.BankName" />
+                    <label for="withdrawalAccountType" class="col-md-4">Account Type</label>
+                    <select id="withdrawalAccountType" class="col-md-8" @bind="model.AccountType">
+                        <option value="Checking">
+                            Checking
+                        </option>
+                        <option value="Savings">
+                            Savings
+                        </option>
+                    </select>
+                </div>
+                <div class="row">
+                    <label for="withdrawalAccountNumber" class="col-md-4">Account Number</label>
+                    <input id="withdrawalAccountNumber" class="col-md-8" type="text" @bind-value="model.AccountNumber" />
+                </div>
+                <div class="row">
+                    <label for="withdrawalRoutingNumber" class="col-md-4">Routing Number</label>
+                    <input id="withdrawalRoutingNumber" class="col-md-8" type="text" @bind-value="model.RoutingNumber" />
+                </div>
+                <div class="row">
+                    <label for="withdrawalAmount" class="col-md-4">Amount</label>
+                    <input id="withdrawalAmount" class="col-md-8" type="text" @bind-value="model.Amount" />
                 </div>
           </div>
           <div class="modal-footer">
@@ -74,30 +77,40 @@
     [Parameter]
     public string? Cookie { get; set; }
     private HubConnection? hubConnection;
-    private WithdrawalModel model = new();
+    private AchPaymentFormModel model = new();
     private string error;
     protected override async Task OnInitializedAsync()
     {
         hubConnection = CookieBridgeConnection.GetHubConnection("/entityhub", Cookie!);
         await hubConnection.StartAsync();
-
+        model.EntityType = "Individual";
+        model.AccountType = "Checking";
     }
     private async void ValidSubmit()
     {
+        recipientDetails details = new()
+        {
+            RecipientType = model.EntityType,
+            RecipientName = model.NameOnAccount,
+            RecipientAccountType = model.AccountType,
+            RecipientAccountNumber = model.AccountNumber,
+            RecipientRoutingNumber = model.RoutingNumber,
+            RecipientIdentificationNumber = "1"
+        };
         if (hubConnection is not null)
         {
-            Result result = await hubConnection.InvokeAsync<Result>("Withdrawal", model);
-            if (result.Successful)
+            var result = await hubConnection.InvokeAsync<UsBankAchApiResponse>("Withdrawal", details, model.Amount);
+            HubContext.Clients.All.SendAsync("UpdateBalance");
+            await JS.InvokeVoidAsync("HideModal", new object[1] { "#withdrawalModal" });
+            if (result.TransactionStatus == "REQUEST_RECEIVED")
             {
-                HubContext.Clients.All.SendAsync("UpdateBalance");
-                await JS.InvokeVoidAsync("HideModal", new object[1] { "#withdrawalModal" });
-            }
-            else
-            {
-                error = result.Message;
-                await InvokeAsync(StateHasChanged);
+                await JS.InvokeVoidAsync("ShowInformationModal", new object[1] 
+                { 
+                    $"<div>The transaction is in progress. Your transaction ID is {result.TransactionID}.</div>" 
+                });
             }
         }
+
     }
     private void Invalid()
     {
